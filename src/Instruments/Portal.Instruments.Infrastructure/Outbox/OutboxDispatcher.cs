@@ -55,7 +55,10 @@ public sealed class OutboxDispatcher(
         await using var transaction = await connection.BeginTransactionAsync(ct);
 
         // SKIP LOCKED: Zeilen, die ein anderer Dispatcher gerade bearbeitet, werden übersprungen statt doppelt gesendet.
-        // ponytail: Mit mehreren Dispatchern ist die Reihenfolge pro Key nicht garantiert – deshalb tragen Snapshots eine Revision.
+        // ponytail: genau EIN Dispatcher (eine Instanz des Instrument-Service). Mit mehreren ist die Reihenfolge pro Key
+        // nicht garantiert: Live-Consumer verkraften das dank Revision, aber die Kompaktierung behält pro Key die LETZTE
+        // Nachricht nach Offset, nicht nach Revision – ein Neuaufbau könnte dann einen älteren Stand liefern.
+        // Ausbau: nur ein Dispatcher aktiv (z. B. pg_try_advisory_lock als Leader-Wahl).
         var rows = (await connection.QueryAsync<Row>(new CommandDefinition("""
             SELECT id, topic, key, payload::text AS payload, trace_parent AS traceparent
             FROM outbox_messages

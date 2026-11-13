@@ -157,6 +157,31 @@ public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Consumer_skips_typed_but_invalid_payload()
+    {
+        var (db, projection) = await Setup();
+        var topic = await Topic();
+        using (var producer = new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = kafka.BootstrapServers }).Build())
+            await producer.ProduceAsync(topic, new Message<string, string>
+            {
+                Key = Siemens.ToString("D"), // gleiche Partition wie der gültige Snapshot danach
+                Value = """{"type":"InstrumentSnapshot","payload":{}}""",
+            });
+        await Produce(topic, Snap(Siemens, "Siemens AG", 1, "DE0007236101"));
+
+        var consumer = Consumer(projection, topic, $"search-test-{Guid.NewGuid():N}");
+        await consumer.StartAsync(CancellationToken.None);
+        try
+        {
+            await Eventually(async () => await Count(db, "instruments") == 1); // blockierte die Partition vorher dauerhaft
+        }
+        finally
+        {
+            await consumer.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
     public async Task Failed_apply_is_retried_not_skipped()
     {
         var (db, projection) = await Setup();

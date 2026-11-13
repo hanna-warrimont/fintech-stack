@@ -11,5 +11,6 @@ public static class InstrumentErrors
     public static readonly Error NameRequired = new("Instrument.NameRequired", "Der Name darf nicht leer sein.", ErrorType.Validation);
     public static readonly Error NameTooLong = new("Instrument.NameTooLong", $"Der Name darf höchstens {Instrument.MaxNameLength} Zeichen haben.", ErrorType.Validation);
     public static readonly Error NotFound = new("Instrument.NotFound", "Das Instrument wurde nicht gefunden.", ErrorType.NotFound);
+    public static readonly Error ConcurrentUpdate = new("Instrument.ConcurrentUpdate", "Das Instrument wurde gerade von jemand anderem geändert. Bitte neu laden.", ErrorType.Conflict);
     public static readonly Error DuplicateIsin = new("Instrument.DuplicateIsin", "Ein Instrument mit dieser ISIN existiert bereits.", ErrorType.Conflict);
 }

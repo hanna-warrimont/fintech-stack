@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Confluent.Kafka;
 using Portal.Messaging;
 using Portal.Messaging.Contracts;
@@ -51,7 +50,7 @@ public sealed class SnapshotConsumer(
                 }
 
                 using var activity = KafkaTracing.StartConsume(topic, result.Message.Headers);
-                if (Parse(result.Message.Value) is not { } envelope)
+                if (InstrumentSnapshot.TryParse(result.Message.Value) is not { } envelope)
                 {
                     // ponytail: kein DLT bis Runde 3 – überspringen und committen, damit die Partition nicht hängt
                     log.LogWarning("Ungültige Nachricht übersprungen: {TopicPartitionOffset}", result.TopicPartitionOffset);
@@ -80,20 +79,6 @@ public sealed class SnapshotConsumer(
         finally
         {
             consumer.Close();
-        }
-    }
-
-    private static Envelope<InstrumentSnapshot>? Parse(string? value)
-    {
-        if (value is null) return null; // Tombstone
-        try
-        {
-            var envelope = JsonSerializer.Deserialize<Envelope<InstrumentSnapshot>>(value, JsonSerializerOptions.Web);
-            return envelope is { Type: InstrumentSnapshot.MessageType, Payload: not null } ? envelope : null;
-        }
-        catch (JsonException)
-        {
-            return null;
         }
     }
 }

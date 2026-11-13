@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Confluent.Kafka;
 using Portal.Messaging;
 using Portal.Messaging.Contracts;
@@ -35,8 +34,8 @@ public sealed class InstrumentCatalogConsumer(
                 }
 
                 using var activity = KafkaTracing.StartConsume(topic, result.Message.Headers);
-                if (Parse(result.Message.Value) is { } snapshot)
-                    catalog.Apply(snapshot);
+                if (InstrumentSnapshot.TryParse(result.Message.Value) is { } envelope)
+                    catalog.Apply(envelope.Payload);
                 else
                     log.LogWarning("Ungültige Nachricht übersprungen: {TopicPartitionOffset}", result.TopicPartitionOffset);
             }
@@ -47,20 +46,6 @@ public sealed class InstrumentCatalogConsumer(
         finally
         {
             consumer.Close();
-        }
-    }
-
-    private static InstrumentSnapshot? Parse(string? value)
-    {
-        if (value is null) return null;
-        try
-        {
-            var envelope = JsonSerializer.Deserialize<Envelope<InstrumentSnapshot>>(value, JsonSerializerOptions.Web);
-            return envelope is { Type: InstrumentSnapshot.MessageType } ? envelope.Payload : null;
-        }
-        catch (JsonException)
-        {
-            return null;
         }
     }
 }

@@ -16,7 +16,15 @@ public sealed class RenameInstrumentHandler(IInstrumentRepository repository, IU
         var result = instrument.Rename(command.Name);
         if (result.IsFailure) return result;
 
-        await unitOfWork.SaveChangesAsync(ct);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(ct);
+        }
+        catch (ConcurrencyConflictException)
+        {
+            return Result.Failure(InstrumentErrors.ConcurrentUpdate);
+        }
+
         return Result.Success();
     }
 }

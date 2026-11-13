@@ -22,7 +22,9 @@ internal sealed class InstrumentConfiguration : IEntityTypeConfiguration<Instrum
         b.Property(i => i.Currency).HasColumnName("currency").HasMaxLength(3)
             .HasConversion(v => v.Value, v => Currency.Create(v).Value);
         b.Property(i => i.Status).HasColumnName("status").HasConversion<string>();
-        b.Property(i => i.Revision).HasColumnName("revision");
+        // Optimistic Concurrency: UPDATE … WHERE revision = <geladene Revision>. Wer zweiter speichert, verliert –
+        // sonst gäbe es zwei Snapshots mit derselben Revision, und Consumer könnten den falschen behalten.
+        b.Property(i => i.Revision).HasColumnName("revision").IsConcurrencyToken();
         b.Ignore(i => i.DomainEvents);
     }
 }

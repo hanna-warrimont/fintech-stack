@@ -47,6 +47,7 @@ namespace Portal.Instruments.Infrastructure.Migrations
                         .HasColumnName("name");
 
                     b.Property<int>("Revision")
+                        .IsConcurrencyToken()
                         .HasColumnType("integer")
                         .HasColumnName("revision");
 

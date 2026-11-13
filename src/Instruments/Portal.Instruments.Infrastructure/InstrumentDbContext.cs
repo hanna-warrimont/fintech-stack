@@ -35,6 +35,10 @@ public sealed class InstrumentDbContext(DbContextOptions<InstrumentDbContext> op
             changed.ForEach(i => i.ClearDomainEvents());
             return result;
         }
+        catch (DbUpdateConcurrencyException e)
+        {
+            throw new ConcurrencyConflictException(e);
+        }
         catch (DbUpdateException e) when (e.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation })
         {
             throw new DuplicateKeyException(e);

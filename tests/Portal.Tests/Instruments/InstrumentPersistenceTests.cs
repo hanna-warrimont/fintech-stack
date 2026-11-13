@@ -60,6 +60,27 @@ public sealed class InstrumentPersistenceTests(PostgresFixture postgres)
     }
 
     [Fact]
+    public async Task Concurrent_renames_one_wins_other_conflicts()
+    {
+        await using var sp = await Services();
+        var id = (await Handle(sp, Sap)).Value;
+        await using var a = sp.CreateAsyncScope();
+        await using var b = sp.CreateAsyncScope();
+        var instrumentA = (await a.ServiceProvider.GetRequiredService<IInstrumentRepository>().GetAsync(id, CancellationToken.None))!;
+        var instrumentB = (await b.ServiceProvider.GetRequiredService<IInstrumentRepository>().GetAsync(id, CancellationToken.None))!;
+
+        instrumentA.Rename("A");
+        instrumentB.Rename("B"); // beide auf Revision 2 – ohne Concurrency-Token gäbe es zwei Snapshots mit Revision 2
+        await a.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(CancellationToken.None);
+
+        await Assert.ThrowsAsync<ConcurrencyConflictException>(() =>
+            b.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(CancellationToken.None));
+        await using var db = Data(sp);
+        Assert.Equal(2, (await Outbox(db)).Count);
+        Assert.Equal("A", await db.ExecuteScalarAsync<string>("SELECT name FROM instruments"));
+    }
+
+    [Fact]
     public async Task Rename_unknown_returns_not_found()
     {
         await using var sp = await Services();
