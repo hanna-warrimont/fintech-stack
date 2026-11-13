@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Simulator\Portal.Simulator.csproj" />
+    <ProjectReference Include="..\Quote\Portal.Quote.csproj" />
   </ItemGroup>
 
 </Project>

@@ -6,6 +6,9 @@
   <Folder Name="/src/Messaging/">
     <Project Path="src/Messaging/Portal.Messaging.csproj" />
   </Folder>
+  <Folder Name="/src/Quote/">
+    <Project Path="src/Quote/Portal.Quote.csproj" />
+  </Folder>
   <Folder Name="/src/ServiceDefaults/">
     <Project Path="src/ServiceDefaults/Portal.ServiceDefaults.csproj" />
   </Folder>

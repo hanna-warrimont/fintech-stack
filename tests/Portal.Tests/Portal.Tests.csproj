@@ -22,6 +22,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Messaging\Portal.Messaging.csproj" />
     <ProjectReference Include="..\..\src\Simulator\Portal.Simulator.csproj" />
+    <ProjectReference Include="..\..\src\Quote\Portal.Quote.csproj" />
   </ItemGroup>
 
 </Project>
