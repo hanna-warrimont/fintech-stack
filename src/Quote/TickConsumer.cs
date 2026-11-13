@@ -24,11 +24,23 @@ public sealed class TickConsumer(QuoteHub hub, ConsumerConfig config, ILogger<Ti
         {
             while (!ct.IsCancellationRequested)
             {
-                var result = consumer.Consume(ct);
+                ConsumeResult<string, string> result;
+                try
+                {
+                    result = consumer.Consume(ct);
+                }
+                catch (ConsumeException e) when (!e.Error.IsFatal)
+                {
+                    // z. B. Topic (noch) nicht vorhanden oder gerade neu angelegt: weiterlaufen statt den Host zu beenden
+                    log.LogWarning(e, "Konsumieren von {Topic} fehlgeschlagen, versuche weiter", topic);
+                    continue;
+                }
+
                 using var activity = KafkaTracing.StartConsume(topic, result.Message.Headers);
                 try
                 {
-                    if (JsonSerializer.Deserialize<Tick>(result.Message.Value, JsonSerializerOptions.Web) is { } tick)
+                    // Value null = Tombstone; ohne Prüfung würfe Deserialize eine ArgumentNullException
+                    if (result.Message.Value is { } json && JsonSerializer.Deserialize<Tick>(json, JsonSerializerOptions.Web) is { } tick)
                         hub.Publish(tick);
                     else
                         Skip(result, null);

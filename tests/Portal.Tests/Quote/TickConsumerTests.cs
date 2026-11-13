@@ -66,6 +66,67 @@ public sealed class TickConsumerTests(KafkaFixture kafka)
         }
     }
 
+    [Fact]
+    public async Task Consumer_skips_message_without_value()
+    {
+        var topic = await NewTopic();
+        using (var producer = Producer())
+        {
+            await producer.ProduceAsync(topic, new Message<string, string> { Key = A.ToString("D"), Value = null! }); // Tombstone
+            await new TickPublisher(producer, topic).PublishAsync(new Tick(A, 1, 100m, 1, DateTimeOffset.UtcNow), CancellationToken.None);
+        }
+
+        var hub = new QuoteHub();
+        var consumer = Consumer(hub, topic, $"quote-{Guid.NewGuid():N}", AutoOffsetReset.Earliest);
+        await consumer.StartAsync(CancellationToken.None);
+        try
+        {
+            await WaitForLatest(hub);
+            Assert.Equal(1, hub.Latest(A)?.Seq);
+            Assert.False(consumer.ExecuteTask!.IsFaulted);
+        }
+        finally
+        {
+            await consumer.StopAsync(CancellationToken.None);
+        }
+    }
+
+    [Fact]
+    public async Task Consumer_survives_topic_that_does_not_exist_yet()
+    {
+        var topic = $"ticks-test-{Guid.NewGuid():N}"; // noch nicht angelegt
+        var hub = new QuoteHub();
+        var consumer = Consumer(hub, topic, $"quote-{Guid.NewGuid():N}", AutoOffsetReset.Earliest);
+        await consumer.StartAsync(CancellationToken.None);
+        try
+        {
+            await Task.Delay(3000); // Consumer läuft gegen das fehlende Topic
+            Assert.False(consumer.ExecuteTask!.IsFaulted, consumer.ExecuteTask.Exception?.ToString());
+
+            await Topics.EnsureTopicAsync(kafka.BootstrapServers, topic);
+            using var producer = Producer();
+            var publisher = new TickPublisher(producer, topic);
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            for (var seq = 1; hub.Latest(A) is null && DateTime.UtcNow < deadline; seq++)
+            {
+                await publisher.PublishAsync(new Tick(A, seq, 100m, 1, DateTimeOffset.UtcNow), CancellationToken.None);
+                await Task.Delay(500);
+            }
+
+            Assert.NotNull(hub.Latest(A));
+        }
+        finally
+        {
+            await consumer.StopAsync(CancellationToken.None);
+        }
+    }
+
+    private static async Task WaitForLatest(QuoteHub hub)
+    {
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (hub.Latest(A) is null && DateTime.UtcNow < deadline) await Task.Delay(200);
+    }
+
     private async Task<string> NewTopic()
     {
         var topic = $"ticks-test-{Guid.NewGuid():N}";

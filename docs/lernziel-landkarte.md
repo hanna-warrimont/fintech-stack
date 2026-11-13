@@ -23,7 +23,7 @@ Jede Zeile ist ein Konzept: wo es im Code steht, welcher Test es absichert und w
 | 17 | Zeitgesteuerte Wirksamkeit, sicher bei mehreren Instanzen | 4 | | | Job doppelt laufen lassen | offen |
 | 18 | Verteilte Folge einer Domänenentscheidung (Split) | 4 | | | History aus, Split wirksam, History an | offen |
 | 19 | Eventual Consistency in der UI | 4 | | | Freigabe beobachten | offen |
-| 20 | SSE-Push, Fan-out | 1 | `src/Quote/QuoteHub.cs`, `src/Frontend/app/composables/useQuoteStream.ts` | `QuoteHubTests` | Beobachtet: 3 Tabs zeigen denselben Kurs. Replikat sauber stoppen → `CompleteAll` beendet die Streams, EventSource verbindet sofort neu. Replikat hart abschießen (`kill -9`) → Nuxt-Dev-Proxy reicht den Abbruch nicht weiter, der Watchdog (10 s ohne Tick) verbindet neu | drin |
+| 20 | SSE-Push, Fan-out | 1 | `src/Quote/QuoteHub.cs`, `src/Frontend/app/composables/useQuoteStream.ts` | `QuoteHubTests` | Beobachtet: 3 Tabs zeigen denselben Kurs. Replikat sauber stoppen → `CompleteAll` beendet die Streams, EventSource verbindet sofort neu. Replikat hart abschießen (`kill -9`) → reicht ein Proxy den Abbruch nicht weiter, verbindet der Watchdog (10 s ohne Tick) neu. Tab schließen → Abo endet bis in den Quote-Service (Nuxt-Route `server/api/[...path].ts` bricht den Upstream ab) | drin |
 | 21 | BFF: Cookie-Session, Tokens serverseitig, Rollen, Aggregation | 4 | | | – | offen |
 | 22 | Distributed Tracing über Kafka | 1 | `src/Messaging/KafkaTracing.cs` | `KafkaTracingTests` | Beobachtet: Dashboard → Traces: `simulator: ticks.v1 publish` mit Spans von simulator und quote in einem Trace | drin |
 | 23 | Last & Consumer-Lag | 3 | | | Lastspitze, Lag beobachten | offen |
