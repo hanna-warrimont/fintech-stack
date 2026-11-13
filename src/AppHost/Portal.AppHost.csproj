@@ -9,4 +9,12 @@
     <UserSecretsId>9f0ac9ba-0bc6-4e4b-b800-87a894445813</UserSecretsId>
   </PropertyGroup>
 
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.Kafka" Version="13.6.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Simulator\Portal.Simulator.csproj" />
+  </ItemGroup>
+
 </Project>

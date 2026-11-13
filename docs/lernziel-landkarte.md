@@ -11,7 +11,7 @@ Jede Zeile ist ein Konzept: wo es im Code steht, welcher Test es absichert und w
 | 5 | Optimistic Concurrency | 4 | | | Zwei Freigaben gleichzeitig | offen |
 | 6 | Transactional Outbox + Dispatcher | 2 | | | Kafka stoppen, freigeben, Kafka starten | offen |
 | 7 | Idempotenter Producer | 2 | | | – | offen |
-| 8 | Key-Wahl & Partitionierung (InstrumentId statt ISIN) | 1 | | | ISIN-Wechsel mitten im Tick-Strom (Runde 4): Am Tick-Strom passiert nichts | offen |
+| 8 | Key-Wahl & Partitionierung (InstrumentId statt ISIN) | 1 | `src/Simulator/TickPublisher.cs` | `TickPublisherTests` | ISIN-Wechsel mitten im Tick-Strom (Runde 4): Am Tick-Strom passiert nichts | drin |
 | 9 | Consumer Groups: Arbeitsteilung vs. Broadcast | 1+3 | | | Zweite Instanz History bzw. Quote | offen |
 | 10 | Manueller Offset-Commit, at-least-once | 2 | | | Consumer nach Verarbeitung, vor Commit abschießen | offen |
 | 11 | Inbox / idempotenter Consumer | 2 | | | Duplikate einschalten | offen |

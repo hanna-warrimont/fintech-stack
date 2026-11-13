@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Messaging\Portal.Messaging.csproj" />
+    <ProjectReference Include="..\..\src\Simulator\Portal.Simulator.csproj" />
   </ItemGroup>
 
 </Project>
