@@ -11,8 +11,9 @@ var instrument = builder.AddProject<Projects.Portal_Instruments_Api>("instrument
 var search = builder.AddProject<Projects.Portal_Search>("search")
     .WithReference(searchDb).WithReference(kafka).WaitFor(searchDb).WaitFor(kafka);
 
+// WaitFor(instrument) ist nur eine Optimierung: Der Instrument-Service legt instruments.v1 an.
 var simulator = builder.AddProject<Projects.Portal_Simulator>("simulator")
-    .WithReference(kafka).WaitFor(kafka);
+    .WithReference(kafka).WaitFor(kafka).WaitFor(instrument);
 
 // Zwei Replikate zeigen Broadcast: jede Instanz hat eine eigene Consumer-Group und sieht alle Ticks.
 // WaitFor(simulator) ist nur eine Optimierung: Der Simulator legt ticks.v1 mit 6 Partitionen an,

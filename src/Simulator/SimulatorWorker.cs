@@ -3,7 +3,8 @@ using Portal.Messaging.Contracts;
 
 namespace Portal.Simulator;
 
-public sealed class SimulatorWorker(TickPublisher publisher, IConfiguration config, TimeProvider time, ILogger<SimulatorWorker> log)
+public sealed class SimulatorWorker(
+    TickPublisher publisher, InstrumentCatalog catalog, IConfiguration config, TimeProvider time, ILogger<SimulatorWorker> log)
     : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
@@ -12,7 +13,7 @@ public sealed class SimulatorWorker(TickPublisher publisher, IConfiguration conf
 
         var rate = config.GetValue("Simulator:TicksPerSecondPerInstrument", 2.0);
         var rng = new Random();
-        var prices = SeedInstruments.All.ToDictionary(i => i.Id, i => i.StartPrice);
+        var prices = new Dictionary<Guid, decimal>();
         // ponytail: monoton über Neustarts, solange < 1000 Ticks/s pro Instrument; sonst persistente seq
         var seq = time.GetUtcNow().ToUnixTimeMilliseconds();
 
@@ -20,13 +21,13 @@ public sealed class SimulatorWorker(TickPublisher publisher, IConfiguration conf
         while (await timer.WaitForNextTickAsync(ct))
         {
             seq++;
-            foreach (var instrument in SeedInstruments.All)
+            foreach (var instrument in catalog.Active)
             {
-                prices[instrument.Id] = PriceWalk.Next(prices[instrument.Id], rng);
+                var price = PriceWalk.Next(prices.GetValueOrDefault(instrument.Id, StartPrices.For(instrument.Isin)), rng);
+                prices[instrument.Id] = price;
                 try
                 {
-                    await publisher.PublishAsync(
-                        new Tick(instrument.Id, seq, prices[instrument.Id], rng.Next(1, 501), time.GetUtcNow()), ct);
+                    await publisher.PublishAsync(new Tick(instrument.Id, seq, price, rng.Next(1, 501), time.GetUtcNow()), ct);
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
