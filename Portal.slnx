@@ -18,6 +18,9 @@
   <Folder Name="/src/Quote/">
     <Project Path="src/Quote/Portal.Quote.csproj" />
   </Folder>
+  <Folder Name="/src/Search/">
+    <Project Path="src/Search/Portal.Search/Portal.Search.csproj" />
+  </Folder>
   <Folder Name="/src/ServiceDefaults/">
     <Project Path="src/ServiceDefaults/Portal.ServiceDefaults.csproj" />
   </Folder>

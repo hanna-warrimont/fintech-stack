@@ -13,13 +13,13 @@ Jede Zeile ist ein Konzept: wo es im Code steht, welcher Test es absichert und w
 | 7 | Idempotenter Producer | 2 | `OutboxDispatcher.ProducerConfig` | – (Konfiguration) | – | drin |
 | 8 | Key-Wahl & Partitionierung (InstrumentId statt ISIN) | 1 | `src/Simulator/TickPublisher.cs` | `TickPublisherTests` | Beobachtet: `kafka-get-offsets` zeigt 4 Instrumente auf 3 von 6 Partitionen, jeder Key bleibt in seiner Partition. Runde 4: ISIN-Wechsel mitten im Tick-Strom, am Tick-Strom passiert nichts | drin |
 | 9 | Consumer Groups: Arbeitsteilung vs. Broadcast | 1+3 | `src/Quote/TickConsumer.cs` (Broadcast; Arbeitsteilung folgt mit History in Runde 3) | `TickConsumerTests.Two_instances_with_own_groups_both_receive_every_tick` | Beobachtet: 2 Quote-Replikate → 2 Groups `quote-…`, jede mit allen 6 Partitionen; beide streamen dieselben Ticks. Runde 3: zweite History-Instanz (Arbeitsteilung) | teilweise |
-| 10 | Manueller Offset-Commit, at-least-once | 2 | | | Consumer nach Verarbeitung, vor Commit abschießen | offen |
-| 11 | Inbox / idempotenter Consumer | 2 | | | Duplikate einschalten | offen |
+| 10 | Manueller Offset-Commit, at-least-once | 2 | `src/Search/Portal.Search/SnapshotConsumer.cs` | `Consumer_redelivers_after_crash_before_commit_and_inbox_dedupes`, `Failed_apply_is_retried_not_skipped` | Consumer nach Verarbeitung, vor Commit abschießen | drin |
+| 11 | Inbox / idempotenter Consumer | 2 | `src/Search/Portal.Search/InstrumentProjection.cs` | `Apply_is_idempotent_per_message`, `Older_revision_does_not_overwrite_newer` | Duplikate einschalten | drin |
 | 12 | Sequenz-Dedupe | 3 | | | Duplikate einschalten | offen |
 | 13 | Event-Time, verspätete Ticks | 3 | | | Verspätete Ticks einschalten | offen |
 | 14 | Retry, DLT, Poison Message | 3 | | | Poison Message senden | offen |
-| 15 | Event-carried State Transfer, kompaktiertes Topic | 2 | | | – | offen |
-| 16 | Projektion neu aufbauen (Replay) | 2+3 | | | Search-DB löschen, neu aufbauen | offen |
+| 15 | Event-carried State Transfer, kompaktiertes Topic | 2 | `src/Messaging/Contracts/InstrumentSnapshot.cs` + `src/Search/Portal.Search/InstrumentProjection.cs` | `TopicsTests.EnsureTopic_applies_config` | – | drin |
+| 16 | Projektion neu aufbauen (Replay) | 2+3 | `src/Search/Portal.Search/SnapshotConsumer.cs` (Search; History folgt in Runde 3) | `Empty_projection_rebuilds_from_beginning` | Search-DB löschen, neu aufbauen | teilweise |
 | 17 | Zeitgesteuerte Wirksamkeit, sicher bei mehreren Instanzen | 4 | | | Job doppelt laufen lassen | offen |
 | 18 | Verteilte Folge einer Domänenentscheidung (Split) | 4 | | | History aus, Split wirksam, History an | offen |
 | 19 | Eventual Consistency in der UI | 4 | | | Freigabe beobachten | offen |
