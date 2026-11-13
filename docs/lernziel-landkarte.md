@@ -7,9 +7,9 @@ Jede Zeile ist ein Konzept: wo es im Code steht, welcher Test es absichert und w
 | 1 | Value Object mit Validierung (ISIN, Währung) | 2 | `src/Instruments/Portal.Instruments.Domain/Instruments/Isin.cs` (+ `Currency.cs`, `Wkn.cs`) | `IsinTests`, `CurrencyTests`, `WknTests` | – | drin |
 | 2 | Aggregat mit Zustandsautomat + Vier-Augen-Regel | 4 | | | – | offen |
 | 3 | Result-Pattern, Fehlerkatalog | 2 | `src/Instruments/Portal.Instruments.Domain/Abstractions/Result.cs` + `Instruments/InstrumentErrors.cs` | `InstrumentTests` | – | drin |
-| 4 | Domain Event → Integration Event | 2 | | | – | offen |
+| 4 | Domain Event → Integration Event | 2 | `src/Instruments/Portal.Instruments.Infrastructure/Outbox/IntegrationEventMapper.cs` (Aufruf in `InstrumentDbContext.SaveChangesAsync`) | `Create_persists_and_writes_snapshot_to_outbox_in_same_transaction` | – | drin |
 | 5 | Optimistic Concurrency | 4 | | | Zwei Freigaben gleichzeitig | offen |
-| 6 | Transactional Outbox + Dispatcher | 2 | | | Kafka stoppen, freigeben, Kafka starten | offen |
+| 6 | Transactional Outbox + Dispatcher | 2 | `src/Instruments/Portal.Instruments.Infrastructure/InstrumentDbContext.cs` (Schreibseite) | `Failed_save_writes_no_outbox_row` | Kafka stoppen, freigeben, Kafka starten | teilweise |
 | 7 | Idempotenter Producer | 2 | | | – | offen |
 | 8 | Key-Wahl & Partitionierung (InstrumentId statt ISIN) | 1 | `src/Simulator/TickPublisher.cs` | `TickPublisherTests` | Beobachtet: `kafka-get-offsets` zeigt 4 Instrumente auf 3 von 6 Partitionen, jeder Key bleibt in seiner Partition. Runde 4: ISIN-Wechsel mitten im Tick-Strom, am Tick-Strom passiert nichts | drin |
 | 9 | Consumer Groups: Arbeitsteilung vs. Broadcast | 1+3 | `src/Quote/TickConsumer.cs` (Broadcast; Arbeitsteilung folgt mit History in Runde 3) | `TickConsumerTests.Two_instances_with_own_groups_both_receive_every_tick` | Beobachtet: 2 Quote-Replikate → 2 Groups `quote-…`, jede mit allen 6 Partitionen; beide streamen dieselben Ticks. Runde 3: zweite History-Instanz (Arbeitsteilung) | teilweise |
