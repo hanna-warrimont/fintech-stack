@@ -25,6 +25,7 @@
     <ProjectReference Include="..\..\src\Messaging\Portal.Messaging.csproj" />
     <ProjectReference Include="..\..\src\Simulator\Portal.Simulator.csproj" />
     <ProjectReference Include="..\..\src\Quote\Portal.Quote.csproj" />
+    <ProjectReference Include="..\..\src\Instruments\Portal.Instruments.Domain\Portal.Instruments.Domain.csproj" />
   </ItemGroup>
 
 </Project>

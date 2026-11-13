@@ -4,9 +4,9 @@ Jede Zeile ist ein Konzept: wo es im Code steht, welcher Test es absichert und w
 
 | # | Konzept | Runde | Ort im Code | Test | Experiment | Status |
 |---|---|---|---|---|---|---|
-| 1 | Value Object mit Validierung (ISIN, Währung) | 2 | | | – | offen |
+| 1 | Value Object mit Validierung (ISIN, Währung) | 2 | `src/Instruments/Portal.Instruments.Domain/Instruments/Isin.cs` (+ `Currency.cs`, `Wkn.cs`) | `IsinTests`, `CurrencyTests`, `WknTests` | – | drin |
 | 2 | Aggregat mit Zustandsautomat + Vier-Augen-Regel | 4 | | | – | offen |
-| 3 | Result-Pattern, Fehlerkatalog | 2 | | | – | offen |
+| 3 | Result-Pattern, Fehlerkatalog | 2 | `src/Instruments/Portal.Instruments.Domain/Abstractions/Result.cs` + `Instruments/InstrumentErrors.cs` | `InstrumentTests` | – | drin |
 | 4 | Domain Event → Integration Event | 2 | | | – | offen |
 | 5 | Optimistic Concurrency | 4 | | | Zwei Freigaben gleichzeitig | offen |
 | 6 | Transactional Outbox + Dispatcher | 2 | | | Kafka stoppen, freigeben, Kafka starten | offen |

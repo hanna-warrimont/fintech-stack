@@ -6,6 +6,9 @@
   <Folder Name="/src/Bff/">
     <Project Path="src/Bff/Portal.Bff.csproj" />
   </Folder>
+  <Folder Name="/src/Instruments/">
+    <Project Path="src/Instruments/Portal.Instruments.Domain/Portal.Instruments.Domain.csproj" />
+  </Folder>
   <Folder Name="/src/Messaging/">
     <Project Path="src/Messaging/Portal.Messaging.csproj" />
   </Folder>
