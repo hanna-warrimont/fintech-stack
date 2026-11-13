@@ -2,7 +2,7 @@ using Testcontainers.Kafka;
 
 namespace Portal.Tests;
 
-/// <summary>Ein echter Kafka-Container, geteilt von allen Tests der Collection "kafka".</summary>
+/// <summary>Ein echter Kafka-Container, geteilt von allen Tests der Collection "infra".</summary>
 public sealed class KafkaFixture : IAsyncLifetime
 {
     private readonly KafkaContainer _kafka = new KafkaBuilder("confluentinc/cp-kafka:7.9.0").Build();
@@ -13,6 +13,3 @@ public sealed class KafkaFixture : IAsyncLifetime
 
     public Task DisposeAsync() => _kafka.DisposeAsync().AsTask();
 }
-
-[CollectionDefinition("kafka")]
-public sealed class KafkaCollection : ICollectionFixture<KafkaFixture>;

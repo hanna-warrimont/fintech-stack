@@ -32,6 +32,17 @@ public sealed class KafkaTracingTests : IDisposable
     }
 
     [Fact]
+    public void Publish_with_explicit_parent_continues_that_trace()
+    {
+        var parent = new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded);
+
+        using var publish = KafkaTracing.StartPublish(Topics.Ticks, new Headers(), parent);
+
+        Assert.Equal(parent.TraceId, publish!.TraceId);
+        Assert.Equal(parent.SpanId, publish.ParentSpanId);
+    }
+
+    [Fact]
     public void Consume_without_header_starts_new_trace()
     {
         using var consume = KafkaTracing.StartConsume(Topics.Ticks, new Headers());

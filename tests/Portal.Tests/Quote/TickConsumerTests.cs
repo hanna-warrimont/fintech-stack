@@ -7,7 +7,7 @@ using Portal.Simulator;
 
 namespace Portal.Tests.Quote;
 
-[Collection("kafka")]
+[Collection("infra")]
 public sealed class TickConsumerTests(KafkaFixture kafka)
 {
     private static readonly Guid A = Guid.NewGuid();

@@ -19,9 +19,15 @@ public static class KafkaTracing
     private static readonly TextMapPropagator Propagator =
         new CompositeTextMapPropagator([new TraceContextPropagator(), new BaggagePropagator()]);
 
-    public static Activity? StartPublish(string topic, Headers headers)
+    public static Activity? StartPublish(string topic, Headers headers) => StartPublish(topic, headers, default);
+
+    /// <summary>
+    /// Mit explizitem Parent: z. B. der Outbox-Dispatcher, der den Trace der ursprünglichen HTTP-Anfrage fortsetzt.
+    /// <c>default</c> = Parent ist <see cref="Activity.Current"/>.
+    /// </summary>
+    public static Activity? StartPublish(string topic, Headers headers, ActivityContext parent)
     {
-        var activity = Source.StartActivity($"{topic} publish", ActivityKind.Producer);
+        var activity = Source.StartActivity($"{topic} publish", ActivityKind.Producer, parent);
         Tag(activity, topic);
 
         var context = (activity ?? Activity.Current)?.Context;

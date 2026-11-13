@@ -7,7 +7,7 @@ using Portal.Simulator;
 
 namespace Portal.Tests.Simulator;
 
-[Collection("kafka")]
+[Collection("infra")]
 public sealed class TickPublisherTests(KafkaFixture kafka)
 {
     [Fact]
