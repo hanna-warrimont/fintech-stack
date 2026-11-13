@@ -7,6 +7,7 @@
     <Project Path="src/Bff/Portal.Bff.csproj" />
   </Folder>
   <Folder Name="/src/Instruments/">
+    <Project Path="src/Instruments/Portal.Instruments.Api/Portal.Instruments.Api.csproj" />
     <Project Path="src/Instruments/Portal.Instruments.Application/Portal.Instruments.Application.csproj" />
     <Project Path="src/Instruments/Portal.Instruments.Domain/Portal.Instruments.Domain.csproj" />
     <Project Path="src/Instruments/Portal.Instruments.Infrastructure/Portal.Instruments.Infrastructure.csproj" />

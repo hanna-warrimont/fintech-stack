@@ -1,6 +1,11 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 var kafka = builder.AddKafka("kafka").WithKafkaUI();
+var postgres = builder.AddPostgres("postgres");
+var instrumentDb = postgres.AddDatabase("instrumentdb");
+
+var instrument = builder.AddProject<Projects.Portal_Instruments_Api>("instrument")
+    .WithReference(instrumentDb).WithReference(kafka).WaitFor(instrumentDb).WaitFor(kafka);
 
 var simulator = builder.AddProject<Projects.Portal_Simulator>("simulator")
     .WithReference(kafka).WaitFor(kafka);
@@ -12,7 +17,7 @@ var quote = builder.AddProject<Projects.Portal_Quote>("quote")
     .WithReference(kafka).WaitFor(simulator).WithReplicas(2);
 
 var bff = builder.AddProject<Projects.Portal_Bff>("bff")
-    .WithReference(simulator).WithReference(quote).WithExternalHttpEndpoints();
+    .WithReference(instrument).WithReference(quote).WithExternalHttpEndpoints();
 
 builder.AddJavaScriptApp("frontend", "../Frontend", "dev")
     .WithHttpEndpoint(env: "PORT")

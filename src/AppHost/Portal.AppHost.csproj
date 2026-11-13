@@ -12,12 +12,14 @@
   <ItemGroup>
     <PackageReference Include="Aspire.Hosting.JavaScript" Version="13.6.5" />
     <PackageReference Include="Aspire.Hosting.Kafka" Version="13.6.5" />
+    <PackageReference Include="Aspire.Hosting.PostgreSQL" Version="13.6.5" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Simulator\Portal.Simulator.csproj" />
     <ProjectReference Include="..\Quote\Portal.Quote.csproj" />
     <ProjectReference Include="..\Bff\Portal.Bff.csproj" />
+    <ProjectReference Include="..\Instruments\Portal.Instruments.Api\Portal.Instruments.Api.csproj" />
   </ItemGroup>
 
 </Project>
