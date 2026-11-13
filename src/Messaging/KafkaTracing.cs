@@ -30,7 +30,9 @@ public static class KafkaTracing
         var activity = Source.StartActivity($"{topic} publish", ActivityKind.Producer, parent);
         Tag(activity, topic);
 
-        var context = (activity ?? Activity.Current)?.Context;
+        // Ohne Listener (kein OTel-SDK) gibt es keine Activity – ein expliziter Parent wird trotzdem weitergereicht,
+        // damit die Kette Anfrage → Outbox → Kafka → Consumer nicht abreißt.
+        ActivityContext? context = activity?.Context ?? (parent != default ? parent : Activity.Current?.Context);
         if (context is { } ctx)
         {
             Propagator.Inject(new PropagationContext(ctx, Baggage.Current), headers,
