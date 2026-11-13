@@ -10,4 +10,7 @@ var simulator = builder.AddProject<Projects.Portal_Simulator>("simulator")
 var quote = builder.AddProject<Projects.Portal_Quote>("quote")
     .WithReference(kafka).WaitFor(simulator).WithReplicas(2);
 
+var bff = builder.AddProject<Projects.Portal_Bff>("bff")
+    .WithReference(simulator).WithReference(quote).WithExternalHttpEndpoints();
+
 builder.Build().Run();

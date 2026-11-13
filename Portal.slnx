@@ -3,6 +3,9 @@
   <Folder Name="/src/AppHost/">
     <Project Path="src/AppHost/Portal.AppHost.csproj" />
   </Folder>
+  <Folder Name="/src/Bff/">
+    <Project Path="src/Bff/Portal.Bff.csproj" />
+  </Folder>
   <Folder Name="/src/Messaging/">
     <Project Path="src/Messaging/Portal.Messaging.csproj" />
   </Folder>
