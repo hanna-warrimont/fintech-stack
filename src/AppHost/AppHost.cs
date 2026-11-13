@@ -13,4 +13,9 @@ var quote = builder.AddProject<Projects.Portal_Quote>("quote")
 var bff = builder.AddProject<Projects.Portal_Bff>("bff")
     .WithReference(simulator).WithReference(quote).WithExternalHttpEndpoints();
 
+builder.AddJavaScriptApp("frontend", "../Frontend", "dev")
+    .WithHttpEndpoint(env: "PORT")
+    .WithEnvironment("NUXT_BFF_URL", bff.GetEndpoint("http"))
+    .WithReference(bff).WaitFor(bff).WithExternalHttpEndpoints();
+
 builder.Build().Run();

@@ -73,4 +73,17 @@ public sealed class QuoteHubTests
 
     [Fact]
     public void Latest_is_null_for_unknown_instrument() => Assert.Null(new QuoteHub().Latest(A));
+
+    [Fact]
+    public async Task CompleteAll_ends_open_subscriptions()
+    {
+        var hub = new QuoteHub();
+        await using var e = hub.Subscribe(A, CancellationToken.None).GetAsyncEnumerator();
+        var pending = e.MoveNextAsync();
+
+        hub.CompleteAll(); // beim Herunterfahren: Streams sauber beenden, damit Clients sofort neu verbinden
+
+        Assert.False(await pending.AsTask().WaitAsync(TimeSpan.FromSeconds(1)));
+        Assert.Equal(0, hub.SubscriberCount);
+    }
 }

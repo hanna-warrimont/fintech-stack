@@ -21,6 +21,8 @@ builder.Services.AddHostedService(sp => new TickConsumer(
 
 var app = builder.Build();
 
+app.Lifetime.ApplicationStopping.Register(app.Services.GetRequiredService<QuoteHub>().CompleteAll);
+
 app.MapGet("/quotes/{instrumentId:guid}", (Guid instrumentId, QuoteHub hub) =>
     hub.Latest(instrumentId) is { } tick ? Results.Ok(tick) : Results.NotFound());
 
