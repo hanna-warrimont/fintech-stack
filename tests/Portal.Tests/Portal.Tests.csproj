@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\src\Search\Portal.Search\Portal.Search.csproj" />
     <ProjectReference Include="..\..\src\History\Portal.History\Portal.History.csproj" />
     <ProjectReference Include="..\..\src\Instruments\Portal.Instruments.Api\Portal.Instruments.Api.csproj" />
+    <ProjectReference Include="..\..\src\Bff\Portal.Bff.csproj" />
   </ItemGroup>
 
 </Project>

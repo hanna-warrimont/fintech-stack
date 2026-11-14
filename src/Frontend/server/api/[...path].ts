@@ -5,5 +5,10 @@
 export default defineEventHandler((event) => {
   const upstream = new AbortController()
   event.node.res.on('close', () => upstream.abort())
-  return proxyRequest(event, `${process.env.NUXT_BFF_URL}${event.path}`, { fetchOptions: { signal: upstream.signal } })
+  return proxyRequest(event, `${process.env.NUXT_BFF_URL}${event.path}`, {
+    // redirect manual: Weiterleitungen (Login zu Keycloak) gehen an den Browser, statt dass der Proxy ihnen folgt.
+    fetchOptions: { signal: upstream.signal, redirect: 'manual' },
+    // Das BFF baut daraus die Redirect-URI für Keycloak und setzt die Cookies für den Host, den der Browser sieht.
+    headers: { 'x-forwarded-host': getRequestHost(event), 'x-forwarded-proto': getRequestProtocol(event) },
+  })
 })
