@@ -4,7 +4,7 @@ using Portal.Messaging.Contracts;
 namespace Portal.Simulator;
 
 public sealed class SimulatorWorker(
-    TickPublisher publisher, InstrumentCatalog catalog, ChaosSettings chaos, IConfiguration config, TimeProvider time,
+    TickPublisher publisher, InstrumentCatalog catalog, PriceBook prices, ChaosSettings chaos, IConfiguration config, TimeProvider time,
     ILogger<SimulatorWorker> log)
     : BackgroundService
 {
@@ -26,7 +26,6 @@ public sealed class SimulatorWorker(
 
         var rate = chaos.TicksPerSecondPerInstrument;
         var rng = new Random();
-        var prices = new Dictionary<Guid, decimal>();
         // seq pro Instrument: Die Dedupe in History gilt pro Instrument, und verspätete Ticks verbrauchen Extra-Nummern.
         // ponytail: Start bei Unix-ms → monoton über Neustarts, solange < 1000 Ticks/s pro Instrument; sonst persistente seq
         var seqs = new Dictionary<Guid, long>();
@@ -46,8 +45,7 @@ public sealed class SimulatorWorker(
             var sends = new List<Task>();
             foreach (var instrument in catalog.Active)
             {
-                var price = PriceWalk.Next(prices.GetValueOrDefault(instrument.Id, StartPrices.For(instrument.Isin)), rng);
-                prices[instrument.Id] = price;
+                var price = prices.Next(instrument, rng);
                 var seq = seqs.GetValueOrDefault(instrument.Id, time.GetUtcNow().ToUnixTimeMilliseconds());
                 var ticks = TickPlan.For(instrument.Id, price, rng.Next(1, 501), time.GetUtcNow(), ref seq, chaos);
                 seqs[instrument.Id] = seq;

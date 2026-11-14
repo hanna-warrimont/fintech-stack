@@ -28,6 +28,17 @@ builder.Services.AddHostedService(sp => new InstrumentCatalogConsumer(
         EnableAutoCommit = false,
     },
     sp.GetRequiredService<ILogger<InstrumentCatalogConsumer>>()));
+builder.Services.AddSingleton<PriceBook>();
+builder.Services.AddHostedService(sp => new CorporateActionConsumer(
+    sp.GetRequiredService<PriceBook>(),
+    new ConsumerConfig
+    {
+        BootstrapServers = kafka,
+        GroupId = $"simulator-ca-{Guid.NewGuid():N}", // Broadcast: jede Instanz führt ihre eigenen Kurse
+        AutoOffsetReset = AutoOffsetReset.Latest,
+        EnableAutoCommit = false,
+    },
+    sp.GetRequiredService<ILogger<CorporateActionConsumer>>()));
 builder.Services.AddHostedService<SimulatorWorker>();
 
 var app = builder.Build();
