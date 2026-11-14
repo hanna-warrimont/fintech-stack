@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Confluent.Kafka;
 using Portal.Messaging;
 using Portal.Messaging.Contracts;
@@ -37,19 +36,11 @@ public sealed class TickConsumer(QuoteHub hub, ConsumerConfig config, ILogger<Ti
                 }
 
                 using var activity = KafkaTracing.StartConsume(topic, result.Message.Headers);
-                try
-                {
-                    // Value null = Tombstone; ohne Prüfung würfe Deserialize eine ArgumentNullException
-                    if (result.Message.Value is { } json && JsonSerializer.Deserialize<Tick>(json, JsonSerializerOptions.Web) is { } tick)
-                        hub.Publish(tick);
-                    else
-                        Skip(result, null);
-                }
-                catch (JsonException e)
-                {
-                    // ponytail: kein DLT, kommt in Runde 3
-                    Skip(result, e);
-                }
+                // ponytail: kein DLT – für die Live-Anzeige ist ein verlorener Tick egal, der nächste kommt gleich
+                if (Tick.TryParse(result.Message.Value) is { } tick)
+                    hub.Publish(tick);
+                else
+                    log.LogWarning("Ungültiger Tick übersprungen: {TopicPartitionOffset}", result.TopicPartitionOffset);
             }
         }
         catch (OperationCanceledException)
@@ -60,7 +51,4 @@ public sealed class TickConsumer(QuoteHub hub, ConsumerConfig config, ILogger<Ti
             consumer.Close();
         }
     }
-
-    private void Skip(ConsumeResult<string, string> result, Exception? e) =>
-        log.LogWarning(e, "Ungültiger Tick übersprungen: {TopicPartitionOffset}", result.TopicPartitionOffset);
 }
