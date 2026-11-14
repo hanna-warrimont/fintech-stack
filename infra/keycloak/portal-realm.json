@@ -1,0 +1,120 @@
+{
+  "realm": "portal",
+  "enabled": true,
+  "accessTokenLifespan": 1800,
+  "roles": {
+    "realm": [
+      {
+        "name": "pfleger",
+        "description": "Erfasst Kapitalmaßnahmen"
+      },
+      {
+        "name": "freigeber",
+        "description": "Gibt Kapitalmaßnahmen frei"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "portal-bff",
+      "name": "Instrumenten-Portal BFF",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${PORTAL_BFF_SECRET}",
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "implicitFlowEnabled": false,
+      "redirectUris": [
+        "${PORTAL_FRONTEND_URL}/api/signin-oidc"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "${PORTAL_FRONTEND_URL}/*"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience portal-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "portal-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        },
+        {
+          "name": "realm roles",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "claim.name": "roles",
+            "multivalued": "true",
+            "jsonType.label": "String",
+            "access.token.claim": "true",
+            "id.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "pia",
+      "enabled": true,
+      "firstName": "Pia",
+      "lastName": "Pfleger",
+      "email": "pia@example.test",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${PORTAL_PIA_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "pfleger"
+      ]
+    },
+    {
+      "username": "fred",
+      "enabled": true,
+      "firstName": "Fred",
+      "lastName": "Freigeber",
+      "email": "fred@example.test",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${PORTAL_FRED_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "freigeber"
+      ]
+    },
+    {
+      "username": "frieda",
+      "enabled": true,
+      "firstName": "Frieda",
+      "lastName": "Beides",
+      "email": "frieda@example.test",
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${PORTAL_FRIEDA_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "pfleger",
+        "freigeber"
+      ]
+    }
+  ],
+  "sslRequired": "external"
+}

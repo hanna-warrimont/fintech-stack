@@ -11,7 +11,8 @@ builder.AddServiceDefaults();
 
 // Der Browser spricht mit Nuxt, Nuxt reicht /api hierher durch: Die Redirect-URI für Keycloak muss den Host des
 // Browsers tragen, nicht den des BFF.
-builder.Services.Configure<ForwardedHeadersOptions>(o => o.ForwardedHeaders = ForwardedHeaders.XForwardedHost | ForwardedHeaders.XForwardedProto);
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+    ProxyTrust.Configure(o, builder.Configuration.GetValue("Bff:TrustAllProxies", false)));
 
 // BFF-Muster: Login (Authorization Code) läuft hier, der Browser bekommt nur ein HttpOnly-Cookie mit Session-Schlüssel.
 builder.Services.AddAuthentication(o =>
