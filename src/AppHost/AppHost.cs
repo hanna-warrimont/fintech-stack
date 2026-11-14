@@ -15,7 +15,9 @@ var keycloak = builder.AddKeycloak("keycloak", 8080).WithoutHttpsCertificate().W
 
 var instrument = builder.AddProject<Projects.Portal_Instruments_Api>("instrument")
     .WithReference(instrumentDb).WithReference(kafka).WithReference(keycloak)
-    .WaitFor(instrumentDb).WaitFor(kafka).WaitFor(keycloak);
+    .WaitFor(instrumentDb).WaitFor(kafka).WaitFor(keycloak)
+    // Experiment 17: InstrumentJobInstances=2 lässt den Wirksamkeits-Job zweimal im Instrument-Service laufen.
+    .WithEnvironment("CorporateActions__JobInstances", builder.Configuration["InstrumentJobInstances"] ?? "1");
 
 var search = builder.AddProject<Projects.Portal_Search>("search")
     .WithReference(searchDb).WithReference(kafka).WaitFor(searchDb).WaitFor(kafka);
