@@ -4,6 +4,7 @@ var kafka = builder.AddKafka("kafka").WithKafkaUI();
 var postgres = builder.AddPostgres("postgres");
 var instrumentDb = postgres.AddDatabase("instrumentdb");
 var searchDb = postgres.AddDatabase("searchdb");
+var historyDb = postgres.AddDatabase("historydb");
 
 var instrument = builder.AddProject<Projects.Portal_Instruments_Api>("instrument")
     .WithReference(instrumentDb).WithReference(kafka).WaitFor(instrumentDb).WaitFor(kafka);
@@ -12,6 +13,10 @@ var search = builder.AddProject<Projects.Portal_Search>("search")
     .WithReference(searchDb).WithReference(kafka).WaitFor(searchDb).WaitFor(kafka);
 
 // WaitFor(instrument) ist nur eine Optimierung: Der Instrument-Service legt instruments.v1 an.
+// Replikate per Umgebungsvariable (HistoryReplicas=2) für das Experiment Arbeitsteilung. Neuaufbau nur mit 1 Replikat sicher.
+var history = builder.AddProject<Projects.Portal_History>("history")
+    .WithReference(historyDb).WithReference(kafka).WaitFor(historyDb).WaitFor(kafka)
+    .WithReplicas(int.Parse(builder.Configuration["HistoryReplicas"] ?? "1"));
 var simulator = builder.AddProject<Projects.Portal_Simulator>("simulator")
     .WithReference(kafka).WaitFor(kafka).WaitFor(instrument);
 
@@ -22,7 +27,7 @@ var quote = builder.AddProject<Projects.Portal_Quote>("quote")
     .WithReference(kafka).WaitFor(simulator).WithReplicas(2);
 
 var bff = builder.AddProject<Projects.Portal_Bff>("bff")
-    .WithReference(instrument).WithReference(search).WithReference(quote).WithExternalHttpEndpoints();
+    .WithReference(instrument).WithReference(search).WithReference(quote).WithReference(history).WithExternalHttpEndpoints();
 
 builder.AddJavaScriptApp("frontend", "../Frontend", "dev")
     .WithHttpEndpoint(env: "PORT")

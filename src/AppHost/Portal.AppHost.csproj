@@ -21,6 +21,7 @@
     <ProjectReference Include="..\Bff\Portal.Bff.csproj" />
     <ProjectReference Include="..\Instruments\Portal.Instruments.Api\Portal.Instruments.Api.csproj" />
     <ProjectReference Include="..\Search\Portal.Search\Portal.Search.csproj" />
+    <ProjectReference Include="..\History\Portal.History\Portal.History.csproj" />
   </ItemGroup>
 
 </Project>
