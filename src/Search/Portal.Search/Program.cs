@@ -1,5 +1,6 @@
 using Confluent.Kafka;
 using Npgsql;
+using Portal.Messaging;
 using Portal.Search;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,14 +12,8 @@ builder.Services.AddSingleton<InstrumentProjection>();
 builder.Services.AddSingleton<SearchQuery>();
 builder.Services.AddHostedService(sp => new SnapshotConsumer(
     sp.GetRequiredService<InstrumentProjection>(),
-    new ConsumerConfig
-    {
-        BootstrapServers = builder.Configuration.GetConnectionString("kafka"),
-        // Gemeinsame Group = Arbeitsteilung: mehrere Search-Instanzen teilen sich die Partitionen.
-        GroupId = "search",
-        AutoOffsetReset = AutoOffsetReset.Earliest,
-        EnableAutoCommit = false,
-    },
+    // Gemeinsame Group = Arbeitsteilung: mehrere Search-Instanzen teilen sich die Partitionen.
+    new KafkaSettings(builder.Configuration).Consumer("search", AutoOffsetReset.Earliest),
     sp.GetRequiredService<ILogger<SnapshotConsumer>>()));
 
 var app = builder.Build();

@@ -4,7 +4,7 @@ using Portal.Messaging.Contracts;
 namespace Portal.Simulator;
 
 public sealed class SimulatorWorker(
-    TickPublisher publisher, InstrumentCatalog catalog, PriceBook prices, ChaosSettings chaos, IConfiguration config, TimeProvider time,
+    TickPublisher publisher, InstrumentCatalog catalog, PriceBook prices, ChaosSettings chaos, KafkaSettings kafka, TimeProvider time,
     ILogger<SimulatorWorker> log)
     : BackgroundService
 {
@@ -22,7 +22,7 @@ public sealed class SimulatorWorker(
             }
         }
 
-        await Topics.EnsureTopicAsync(config.GetConnectionString("kafka")!, Topics.Ticks);
+        await kafka.EnsureTopicAsync(Topics.Ticks);
 
         var rate = chaos.TicksPerSecondPerInstrument;
         var rng = new Random();

@@ -11,7 +11,7 @@ using Portal.Messaging;
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
-var kafka = builder.Configuration.GetConnectionString("kafka")!;
+var kafka = new KafkaSettings(builder.Configuration);
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -34,7 +34,7 @@ builder.Services.AddAuthorizationBuilder()
     .AddPolicy(Policies.Freigeber, p => p.RequireRole("freigeber"))
     .AddPolicy(Policies.PflegerOderFreigeber, p => p.RequireRole("pfleger", "freigeber"));
 builder.Services.AddSingleton<IProducer<string, string>>(_ =>
-    new ProducerBuilder<string, string>(OutboxDispatcher.ProducerConfig(kafka)).Build());
+    new ProducerBuilder<string, string>(kafka.Producer()).Build());
 builder.Services.AddHostedService<OutboxDispatcher>();
 // Experiment 17: CorporateActions__JobInstances=2 startet den Job doppelt – SKIP LOCKED verhindert doppelte Wirksamkeit.
 for (var i = 0; i < builder.Configuration.GetValue("CorporateActions:JobInstances", 1); i++)
@@ -43,8 +43,8 @@ for (var i = 0; i < builder.Configuration.GetValue("CorporateActions:JobInstance
 var app = builder.Build();
 
 // Vor dem Start: Topic (kompaktiert) und Schema bereitstellen, dann Seed – alles bevor der Dispatcher läuft.
-await Topics.EnsureTopicAsync(kafka, Topics.Instruments, config: Topics.Compacted);
-await Topics.EnsureTopicAsync(kafka, Topics.CorporateActions, config: Topics.LongRetention);
+await kafka.EnsureTopicAsync(Topics.Instruments, Topics.Compacted);
+await kafka.EnsureTopicAsync(Topics.CorporateActions, Topics.LongRetention);
 await using (var scope = app.Services.CreateAsyncScope())
     await scope.ServiceProvider.GetRequiredService<InstrumentDbContext>().Database.MigrateAsync();
 await SeedData.EnsureAsync(app.Services, CancellationToken.None);

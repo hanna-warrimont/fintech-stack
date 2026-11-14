@@ -17,17 +17,6 @@ public sealed class OutboxDispatcher(
 {
     private const int BatchSize = 50;
 
-    /// <summary>
-    /// Idempotenter Producer: Der Broker verwirft Duplikate, die durch Retries INNERHALB dieses Producers entstehen.
-    /// Gegen Duplikate durch einen Neustart des Dispatchers hilft das nicht – dafür haben die Consumer ihre Inbox.
-    /// </summary>
-    public static ProducerConfig ProducerConfig(string bootstrapServers) => new()
-    {
-        BootstrapServers = bootstrapServers,
-        Acks = Acks.All,
-        EnableIdempotence = true,
-    };
-
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         while (!ct.IsCancellationRequested)

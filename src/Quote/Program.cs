@@ -1,5 +1,6 @@
 using System.Net.ServerSentEvents;
 using Confluent.Kafka;
+using Portal.Messaging;
 using Portal.Messaging.Contracts;
 using Portal.Quote;
 
@@ -9,14 +10,8 @@ builder.AddServiceDefaults();
 builder.Services.AddSingleton<QuoteHub>();
 builder.Services.AddHostedService(sp => new TickConsumer(
     sp.GetRequiredService<QuoteHub>(),
-    new ConsumerConfig
-    {
-        BootstrapServers = builder.Configuration.GetConnectionString("kafka"),
-        // Eigene Group pro Instanz = Broadcast: jede Instanz sieht alle Ticks (siehe TickConsumer).
-        GroupId = $"quote-{Guid.NewGuid():N}",
-        AutoOffsetReset = AutoOffsetReset.Latest,
-        EnableAutoCommit = false,
-    },
+    // Eigene Group pro Instanz = Broadcast: jede Instanz sieht alle Ticks (siehe TickConsumer).
+    new KafkaSettings(builder.Configuration).Consumer($"quote-{Guid.NewGuid():N}", AutoOffsetReset.Latest),
     sp.GetRequiredService<ILogger<TickConsumer>>()));
 
 var app = builder.Build();

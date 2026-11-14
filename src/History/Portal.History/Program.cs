@@ -7,45 +7,33 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 const string group = "history";
-var kafka = builder.Configuration.GetConnectionString("kafka")!;
+var kafka = new KafkaSettings(builder.Configuration);
 var db = NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("historydb")!);
 builder.Services.AddSingleton(db);
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<CandleStore>();
 builder.Services.AddSingleton<CandleQuery>();
 builder.Services.AddSingleton<IProducer<string, string>>(_ =>
-    new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = kafka, Acks = Acks.All }).Build());
+    new ProducerBuilder<string, string>(kafka.Producer()).Build());
 builder.Services.AddHostedService(sp => new TickConsumer(
     sp.GetRequiredService<CandleStore>(),
     new DeadLetter(sp.GetRequiredService<IProducer<string, string>>(), group, sp.GetRequiredService<ILogger<DeadLetter>>()),
-    new ConsumerConfig
-    {
-        BootstrapServers = kafka,
-        // Gemeinsame Group = Arbeitsteilung: mehrere History-Instanzen teilen sich die Partitionen.
-        GroupId = group,
-        AutoOffsetReset = AutoOffsetReset.Earliest,
-        EnableAutoCommit = false,
-    },
+    // Gemeinsame Group = Arbeitsteilung: mehrere History-Instanzen teilen sich die Partitionen.
+    kafka.Consumer(group, AutoOffsetReset.Earliest),
     sp.GetRequiredService<ILogger<TickConsumer>>()));
 
 builder.Services.AddSingleton<AdjustmentStore>();
 builder.Services.AddHostedService(sp => new CorporateActionConsumer(
     sp.GetRequiredService<AdjustmentStore>(),
     new DeadLetter(sp.GetRequiredService<IProducer<string, string>>(), CorporateActionConsumer.Group, sp.GetRequiredService<ILogger<DeadLetter>>()),
-    new ConsumerConfig
-    {
-        BootstrapServers = kafka,
-        GroupId = CorporateActionConsumer.Group,
-        AutoOffsetReset = AutoOffsetReset.Earliest, // neue Instanz/DB: alle Splits von Anfang an
-        EnableAutoCommit = false,
-    },
+    kafka.Consumer(CorporateActionConsumer.Group, AutoOffsetReset.Earliest), // neue Instanz/DB: alle Splits von Anfang an
     sp.GetRequiredService<ILogger<CorporateActionConsumer>>()));
 
 var app = builder.Build();
 
 await HistorySchema.EnsureAsync(db, CancellationToken.None);
-await Topics.EnsureTopicAsync(kafka, DeadLetter.TopicFor(Topics.Ticks, group));
-await Topics.EnsureTopicAsync(kafka, DeadLetter.TopicFor(Topics.CorporateActions, CorporateActionConsumer.Group));
+await kafka.EnsureTopicAsync(DeadLetter.TopicFor(Topics.Ticks, group));
+await kafka.EnsureTopicAsync(DeadLetter.TopicFor(Topics.CorporateActions, CorporateActionConsumer.Group));
 
 app.MapGet("/history/{instrumentId:guid}", async (Guid instrumentId, string? interval, CandleQuery query, CancellationToken ct) =>
 {

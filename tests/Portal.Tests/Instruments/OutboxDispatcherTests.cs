@@ -4,6 +4,7 @@ using System.Text.Json;
 using Confluent.Kafka;
 using Dapper;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Npgsql;
@@ -69,7 +70,7 @@ public sealed class OutboxDispatcherTests(KafkaFixture kafka, PostgresFixture po
     {
         var (db, topic) = await Setup();
         await InsertPending(db, topic, 2);
-        var config = OutboxDispatcher.ProducerConfig("localhost:1");
+        var config = ProducerConfig("localhost:1");
         config.MessageTimeoutMs = 1000;
         using var producer = new ProducerBuilder<string, string>(config).Build();
 
@@ -152,7 +153,11 @@ public sealed class OutboxDispatcherTests(KafkaFixture kafka, PostgresFixture po
         new(db, producer, TimeProvider.System, NullLogger<OutboxDispatcher>.Instance);
 
     private static IProducer<string, string> Producer(string bootstrap) =>
-        new ProducerBuilder<string, string>(OutboxDispatcher.ProducerConfig(bootstrap)).Build();
+        new ProducerBuilder<string, string>(ProducerConfig(bootstrap)).Build();
+
+    private static ProducerConfig ProducerConfig(string bootstrap) =>
+        new KafkaSettings(new ConfigurationBuilder()
+            .AddInMemoryCollection([new("ConnectionStrings:kafka", bootstrap)]).Build()).Producer();
 
     private List<Message<string, string>> Consume(string topic, int expected, int fromOffset = 0)
     {
