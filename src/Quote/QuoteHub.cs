@@ -21,7 +21,10 @@ public sealed class QuoteHub
 
     public void Publish(Tick tick)
     {
-        _latest[tick.InstrumentId] = tick;
+        // Für die Live-Anzeige zählt der neueste Stand: Ein verspäteter Tick (ältere EventTime) würde den Kurs
+        // zurückspringen lassen. Verspätete Ticks einzuordnen ist Sache von History (Kerzen nach Event-Time).
+        var latest = _latest.AddOrUpdate(tick.InstrumentId, tick, (_, current) => tick.EventTime >= current.EventTime ? tick : current);
+        if (!ReferenceEquals(latest, tick)) return;
         if (_subscribers.TryGetValue(tick.InstrumentId, out var subscribers))
             foreach (var channel in subscribers.Keys)
                 channel.Writer.TryWrite(tick);

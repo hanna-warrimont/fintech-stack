@@ -11,6 +11,23 @@ public sealed class QuoteHubTests
     private static Tick T(Guid id, long seq) => new(id, seq, 100m + seq, 1, DateTimeOffset.UtcNow);
 
     [Fact]
+    public async Task Older_event_time_does_not_replace_latest()
+    {
+        var hub = new QuoteHub();
+        var t0 = DateTimeOffset.UtcNow;
+        hub.Publish(new Tick(A, 1, 100m, 1, t0));
+        await using var e = hub.Subscribe(A, CancellationToken.None).GetAsyncEnumerator();
+        Assert.True(await e.MoveNextAsync()); // letzter Stand: seq 1
+
+        hub.Publish(new Tick(A, 2, 90m, 1, t0.AddMinutes(-2))); // verspätet
+        Assert.Equal(1, hub.Latest(A)?.Seq);
+
+        hub.Publish(new Tick(A, 3, 101m, 1, t0.AddSeconds(1)));
+        Assert.True(await e.MoveNextAsync());
+        Assert.Equal(3, e.Current.Seq);
+    }
+
+    [Fact]
     public async Task Subscribe_yields_latest_first()
     {
         var hub = new QuoteHub();
