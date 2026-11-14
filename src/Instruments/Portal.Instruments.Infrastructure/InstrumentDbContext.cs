@@ -2,6 +2,8 @@ using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using Portal.Instruments.Application.Abstractions;
+using Portal.Instruments.Domain.Abstractions;
+using Portal.Instruments.Domain.CorporateActions;
 using Portal.Instruments.Domain.Instruments;
 using Portal.Instruments.Infrastructure.Outbox;
 
@@ -10,6 +12,7 @@ namespace Portal.Instruments.Infrastructure;
 public sealed class InstrumentDbContext(DbContextOptions<InstrumentDbContext> options) : DbContext(options), IUnitOfWork
 {
     public DbSet<Instrument> Instruments => Set<Instrument>();
+    public DbSet<CorporateAction> CorporateActions => Set<CorporateAction>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
@@ -23,11 +26,16 @@ public sealed class InstrumentDbContext(DbContextOptions<InstrumentDbContext> op
     /// </summary>
     public override async Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken ct = default)
     {
-        var changed = ChangeTracker.Entries<Instrument>().Select(e => e.Entity).Where(i => i.DomainEvents.Count > 0).ToList();
+        var changed = ChangeTracker.Entries<Entity>().Select(e => e.Entity).Where(e => e.DomainEvents.Count > 0).ToList();
         var now = DateTimeOffset.UtcNow;
-        foreach (var instrument in changed)
-            if (IntegrationEventMapper.ToOutbox(instrument, now, Activity.Current?.Id) is { } message)
-                OutboxMessages.Add(message);
+        var traceParent = Activity.Current?.Id;
+        foreach (var entity in changed)
+            OutboxMessages.AddRange(entity switch
+            {
+                Instrument instrument => IntegrationEventMapper.ToOutbox(instrument, now, traceParent) is { } snapshot ? [snapshot] : [],
+                CorporateAction action => IntegrationEventMapper.ToOutbox(action, now, traceParent),
+                _ => [],
+            });
 
         try
         {

@@ -25,6 +25,7 @@ var app = builder.Build();
 
 // Vor dem Start: Topic (kompaktiert) und Schema bereitstellen, dann Seed – alles bevor der Dispatcher läuft.
 await Topics.EnsureTopicAsync(kafka, Topics.Instruments, config: Topics.Compacted);
+await Topics.EnsureTopicAsync(kafka, Topics.CorporateActions, config: Topics.LongRetention);
 await using (var scope = app.Services.CreateAsyncScope())
     await scope.ServiceProvider.GetRequiredService<InstrumentDbContext>().Database.MigrateAsync();
 await SeedData.EnsureAsync(app.Services, CancellationToken.None);

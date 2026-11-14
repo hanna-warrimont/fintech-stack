@@ -13,6 +13,7 @@ public static class DependencyInjection
         services.AddDbContext<InstrumentDbContext>((sp, o) => o.UseNpgsql(sp.GetRequiredService<NpgsqlDataSource>()));
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<InstrumentDbContext>());
         services.AddScoped<IInstrumentRepository, InstrumentRepository>();
+        services.AddScoped<ICorporateActionRepository, CorporateActionRepository>();
         return services;
     }
 }
