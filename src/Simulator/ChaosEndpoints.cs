@@ -15,7 +15,7 @@ public static class ChaosEndpoints
         chaos.MapPost("/pause", (bool on, ChaosSettings s) => { s.Paused = on; return State(s); });
         chaos.MapPost("/rate", (double ticksPerSecond, ChaosSettings s) =>
         {
-            if (ticksPerSecond is < 0.1 or > 1000)
+            if (!IsValidRate(ticksPerSecond))
                 return Results.Problem("ticksPerSecond muss zwischen 0.1 und 1000 liegen.", statusCode: 400);
             s.TicksPerSecondPerInstrument = ticksPerSecond;
             return Results.Ok(State(s));
@@ -30,6 +30,9 @@ public static class ChaosEndpoints
             return Results.Ok(new { Partition = delivery.Partition.Value, Offset = delivery.Offset.Value });
         });
     }
+
+    // Positiv formuliert: NaN fällt durch jeden Vergleich und würde sonst den Timer im Worker sprengen.
+    public static bool IsValidRate(double ticksPerSecond) => ticksPerSecond is >= 0.1 and <= 1000;
 
     private static object State(ChaosSettings s) =>
         new { s.Duplicates, s.Late, s.Paused, s.TicksPerSecondPerInstrument };

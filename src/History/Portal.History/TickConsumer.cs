@@ -61,7 +61,8 @@ public sealed class TickConsumer(
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
-                    // Nicht einmal das DLT ging (Kafka weg): nicht committen, zurückspulen, später erneut versuchen.
+                    // DB vorübergehend weg oder nicht einmal das DLT ging (Kafka weg): nicht committen, zurückspulen,
+                    // später erneut versuchen. Die Partition steht so lange – besser als Lücken in den Kerzen.
                     log.LogError(e, "Tick weder gespeichert noch im DLT, neuer Versuch: {TopicPartitionOffset}", result.TopicPartitionOffset);
                     consumer.Seek(result.TopicPartitionOffset);
                     await Task.Delay(1000, ct);

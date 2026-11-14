@@ -23,8 +23,10 @@ const local = (t: Time, o: Intl.DateTimeFormatOptions) => new Date((t as number)
 
 async function load() {
   state.value = 'loading'
+  const requested = interval.value
   try {
-    const candles = await $fetch<Candle[]>(`/api/history/${props.instrumentId}`, { query: { interval: interval.value } })
+    const candles = await $fetch<Candle[]>(`/api/history/${props.instrumentId}`, { query: { interval: requested } })
+    if (requested !== interval.value) return // inzwischen anderes Intervall gewählt: veraltete Antwort verwerfen
     const data = candles.map(c => ({ ...c, time: c.time as UTCTimestamp }))
     series!.setData(data)
     last = data.at(-1)
@@ -32,7 +34,7 @@ async function load() {
     state.value = data.length ? 'ok' : 'empty'
   }
   catch {
-    state.value = 'error'
+    if (requested === interval.value) state.value = 'error'
   }
 }
 

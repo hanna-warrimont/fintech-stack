@@ -53,6 +53,28 @@ public sealed class DeadLetterTests(KafkaFixture kafka)
         Assert.NotNull(Header(dlt, "traceparent"));
     }
 
+    private sealed class TransientDbError() : System.Data.Common.DbException("DB kurz weg")
+    {
+        public override bool IsTransient => true;
+    }
+
+    [Fact]
+    public async Task Transient_db_error_is_rethrown_instead_of_dlt()
+    {
+        var (topic, result) = await Setup();
+        using var producer = Producer();
+        var calls = 0;
+
+        await Assert.ThrowsAsync<TransientDbError>(() => new DeadLetter(producer, Group, NullLogger.Instance).HandleAsync(result, () =>
+        {
+            calls++;
+            throw new TransientDbError();
+        }, CancellationToken.None));
+
+        Assert.Equal(3, calls);
+        Assert.Empty(ReadDlt(topic, TimeSpan.FromSeconds(3)));
+    }
+
     [Fact]
     public async Task Send_writes_poison_without_retry()
     {
