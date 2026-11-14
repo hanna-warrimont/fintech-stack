@@ -19,6 +19,9 @@ public static class HistorySchema
               volume bigint NOT NULL, open_time timestamptz NOT NULL, close_time timestamptz NOT NULL,
               PRIMARY KEY (instrument_id, bucket));
             CREATE TABLE IF NOT EXISTS instrument_seq (instrument_id uuid PRIMARY KEY, last_seq bigint NOT NULL);
+            CREATE TABLE IF NOT EXISTS adjustments (corporate_action_id uuid PRIMARY KEY, instrument_id uuid NOT NULL,
+              valid_until timestamptz NOT NULL, factor numeric(18,8) NOT NULL);
+            CREATE TABLE IF NOT EXISTS processed_messages (message_id uuid PRIMARY KEY, processed_at timestamptz NOT NULL);
             """, cancellationToken: ct));
     }
 }

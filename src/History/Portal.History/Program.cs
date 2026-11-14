@@ -28,10 +28,24 @@ builder.Services.AddHostedService(sp => new TickConsumer(
     },
     sp.GetRequiredService<ILogger<TickConsumer>>()));
 
+builder.Services.AddSingleton<AdjustmentStore>();
+builder.Services.AddHostedService(sp => new CorporateActionConsumer(
+    sp.GetRequiredService<AdjustmentStore>(),
+    new DeadLetter(sp.GetRequiredService<IProducer<string, string>>(), CorporateActionConsumer.Group, sp.GetRequiredService<ILogger<DeadLetter>>()),
+    new ConsumerConfig
+    {
+        BootstrapServers = kafka,
+        GroupId = CorporateActionConsumer.Group,
+        AutoOffsetReset = AutoOffsetReset.Earliest, // neue Instanz/DB: alle Splits von Anfang an
+        EnableAutoCommit = false,
+    },
+    sp.GetRequiredService<ILogger<CorporateActionConsumer>>()));
+
 var app = builder.Build();
 
 await HistorySchema.EnsureAsync(db, CancellationToken.None);
 await Topics.EnsureTopicAsync(kafka, DeadLetter.TopicFor(Topics.Ticks, group));
+await Topics.EnsureTopicAsync(kafka, DeadLetter.TopicFor(Topics.CorporateActions, CorporateActionConsumer.Group));
 
 app.MapGet("/history/{instrumentId:guid}", async (Guid instrumentId, string? interval, CandleQuery query, CancellationToken ct) =>
 {

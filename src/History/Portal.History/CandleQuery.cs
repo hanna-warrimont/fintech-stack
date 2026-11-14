@@ -8,7 +8,8 @@ public sealed record CandleDto(long Time, decimal Open, decimal High, decimal Lo
 
 /// <summary>
 /// Liest Kerzen. 1h und 1d werden nicht gespeichert, sondern beim Lesen aus den Minuten gebildet:
-/// eine Wahrheit, keine Synchronisation zwischen Tabellen.
+/// eine Wahrheit, keine Synchronisation zwischen Tabellen. Ebenso werden Splits erst beim Lesen eingerechnet
+/// (Spec: Faktoren statt Umschreiben der Rohkerzen) – ein später eintreffender Split wirkt sofort rückwirkend.
 /// </summary>
 // ponytail: Rollup bei jeder Abfrage; bei vielen Lesern eine materialisierte Sicht oder eigene Stunden-Tabelle
 public sealed class CandleQuery(NpgsqlDataSource db, TimeProvider time)
@@ -30,10 +31,20 @@ public sealed class CandleQuery(NpgsqlDataSource db, TimeProvider time)
         var (unit, window) = Intervals[interval];
         await using var connection = await db.OpenConnectionAsync(ct);
         var candles = await connection.QueryAsync<CandleDto>(new CommandDefinition("""
+            WITH adjusted AS (
+              -- Split-Anpassung beim Lesen: je Kerze das Produkt aller Faktoren, die NACH ihr wirksam wurden
+              -- (ln/exp = Produkt über Zeilen). Preise × Faktor, Volumen ÷ Faktor. Die Rohkerzen bleiben unverändert.
+              SELECT c.bucket, c.open * adj.f AS open, c.high * adj.f AS high, c.low * adj.f AS low,
+                     c.close * adj.f AS close, c.volume / adj.f AS volume
+              FROM candles_1m c
+              LEFT JOIN LATERAL (SELECT coalesce(exp(sum(ln(a.factor))), 1) AS f FROM adjustments a
+                                 WHERE a.instrument_id = c.instrument_id AND c.bucket < a.valid_until) adj ON true
+              WHERE c.instrument_id = @instrumentId AND c.bucket >= @from)
             SELECT extract(epoch FROM date_trunc(@unit, bucket, 'UTC'))::bigint AS time,
-                   (array_agg(open ORDER BY bucket))[1] AS open, max(high) AS high, min(low) AS low,
-                   (array_agg(close ORDER BY bucket DESC))[1] AS close, sum(volume)::bigint AS volume
-            FROM candles_1m WHERE instrument_id = @instrumentId AND bucket >= @from
+                   round((array_agg(open ORDER BY bucket))[1], 4) AS open, round(max(high), 4) AS high,
+                   round(min(low), 4) AS low, round((array_agg(close ORDER BY bucket DESC))[1], 4) AS close,
+                   round(sum(volume))::bigint AS volume
+            FROM adjusted
             GROUP BY 1 ORDER BY 1 LIMIT @limit
             """, new { unit, instrumentId, from = time.GetUtcNow() - window, limit = MaxCandles }, cancellationToken: ct));
         return candles.AsList();
