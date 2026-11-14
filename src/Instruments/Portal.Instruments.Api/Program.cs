@@ -15,8 +15,23 @@ builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Ad
 builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services
-    .AddInstrumentApplication()
+    .AddInstrumentApplication(builder.Configuration.GetValue<TimeSpan?>("CorporateActions:LeadTime"))
     .AddInstrumentInfrastructure(builder.Configuration.GetConnectionString("instrumentdb")!);
+// Der Instrument-Service prüft selbst: Signatur und Aussteller (Keycloak-Realm), Audience portal-api, Rollen.
+// Das BFF reicht das Access Token nur durch – es entscheidet nicht über Rechte.
+builder.Services.AddAuthentication().AddJwtBearer(o =>
+{
+    o.Authority = $"{builder.Configuration["services:keycloak:http:0"]}/realms/portal";
+    o.Audience = "portal-api";
+    o.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
+    o.MapInboundClaims = false;
+    o.TokenValidationParameters.NameClaimType = "preferred_username";
+    o.TokenValidationParameters.RoleClaimType = "roles";
+});
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(Policies.Pfleger, p => p.RequireRole("pfleger"))
+    .AddPolicy(Policies.Freigeber, p => p.RequireRole("freigeber"))
+    .AddPolicy(Policies.PflegerOderFreigeber, p => p.RequireRole("pfleger", "freigeber"));
 builder.Services.AddSingleton<IProducer<string, string>>(_ =>
     new ProducerBuilder<string, string>(OutboxDispatcher.ProducerConfig(kafka)).Build());
 builder.Services.AddHostedService<OutboxDispatcher>();
@@ -30,7 +45,10 @@ await using (var scope = app.Services.CreateAsyncScope())
     await scope.ServiceProvider.GetRequiredService<InstrumentDbContext>().Database.MigrateAsync();
 await SeedData.EnsureAsync(app.Services, CancellationToken.None);
 
+app.UseAuthentication();
+app.UseAuthorization();
 app.MapInstrumentEndpoints();
+app.MapCorporateActionEndpoints();
 app.MapDefaultEndpoints();
 
 app.Run();

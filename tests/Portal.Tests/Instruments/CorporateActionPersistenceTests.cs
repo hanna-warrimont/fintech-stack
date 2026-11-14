@@ -4,12 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using Portal.Instruments.Application;
 using Portal.Instruments.Application.Abstractions;
+using Portal.Instruments.Application.CorporateActions;
 using Portal.Instruments.Application.Instruments;
 using Portal.Instruments.Domain.CorporateActions;
 using Portal.Instruments.Domain.Instruments;
 using Portal.Instruments.Infrastructure;
 using Portal.Messaging;
 using Portal.Messaging.Contracts;
+using Portal.Instruments.Domain.Abstractions;
 
 namespace Portal.Tests.Instruments;
 
@@ -96,9 +98,87 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
             envelope with { Type = "CorporateActionBecameEffective" }, System.Text.Json.JsonSerializerOptions.Web)));
     }
 
-    private async Task<ServiceProvider> Services()
+    [Fact]
+    public async Task Create_and_full_approval_via_handlers()
+    {
+        var time = new FixedTime(Now);
+        await using var sp = await Services(time);
+        var instrumentId = await NewInstrument(sp);
+
+        var id = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, "pia"))).Value;
+        Assert.True((await Step(sp, id, CorporateActionStep.Submit, "pia")).IsSuccess);
+        Assert.True((await Step(sp, id, CorporateActionStep.Approve, "fred")).IsSuccess);
+
+        var dto = Assert.Single(await sp.GetRequiredService<ListCorporateActionsQuery>().Worklist(default));
+        Assert.Equal(("Approved", "pia", "fred", "SAP SE"), (dto.Status, dto.CreatedBy, dto.DecidedBy, dto.InstrumentName));
+    }
+
+    [Fact]
+    public async Task Approve_by_creator_via_handler_returns_four_eyes_error()
+    {
+        await using var sp = await Services(new FixedTime(Now));
+        var id = (await Create(sp, new CreateCorporateActionCommand(await NewInstrument(sp), CorporateActionType.Delisting, null, null, null, Due, "frieda"))).Value;
+        await Step(sp, id, CorporateActionStep.Submit, "frieda");
+
+        Assert.Equal(CorporateActionErrors.FourEyes, (await Step(sp, id, CorporateActionStep.Approve, "frieda")).Error);
+    }
+
+    [Fact]
+    public async Task Unknown_action_returns_not_found()
+    {
+        await using var sp = await Services(new FixedTime(Now));
+
+        Assert.Equal(CorporateActionErrors.NotFound, (await Step(sp, Guid.NewGuid(), CorporateActionStep.Submit, "pia")).Error);
+        Assert.Equal(InstrumentErrors.NotFound, (await Create(sp,
+            new CreateCorporateActionCommand(Guid.NewGuid(), CorporateActionType.Delisting, null, null, null, Due, "pia"))).Error);
+    }
+
+    [Fact]
+    public async Task Duplicate_open_action_returns_duplicate_error()
+    {
+        await using var sp = await Services(new FixedTime(Now));
+        var instrumentId = await NewInstrument(sp);
+        var command = new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, "pia");
+
+        await Create(sp, command);
+
+        Assert.Equal(CorporateActionErrors.Duplicate, (await Create(sp, command)).Error);
+    }
+
+    [Fact]
+    public async Task Public_list_hides_drafts_and_submitted()
+    {
+        await using var sp = await Services(new FixedTime(Now));
+        var instrumentId = await NewInstrument(sp);
+        var draft = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Delisting, null, null, null, Due, "pia"))).Value;
+        var approved = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, "pia"))).Value;
+        await Step(sp, approved, CorporateActionStep.Submit, "pia");
+        await Step(sp, approved, CorporateActionStep.Approve, "fred");
+
+        var visible = await sp.GetRequiredService<ListCorporateActionsQuery>().PublicForInstrument(instrumentId, default);
+
+        Assert.Equal([approved], visible.Select(a => a.Id));
+        Assert.Equal(2, (await sp.GetRequiredService<ListCorporateActionsQuery>().Worklist(default)).Count);
+        Assert.NotEqual(draft, approved);
+    }
+
+    private static async Task<Result<Guid>> Create(IServiceProvider sp, CreateCorporateActionCommand command)
+    {
+        await using var scope = sp.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<CreateCorporateActionHandler>().Handle(command, default);
+    }
+
+    private static async Task<Result> Step(IServiceProvider sp, Guid id, CorporateActionStep step, string user)
+    {
+        await using var scope = sp.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<ChangeCorporateActionHandler>()
+            .Handle(new ChangeCorporateActionCommand(id, step, user), default);
+    }
+
+    private async Task<ServiceProvider> Services(TimeProvider? time = null)
     {
         var sp = new ServiceCollection()
+            .AddSingleton(time ?? TimeProvider.System)
             .AddInstrumentApplication()
             .AddInstrumentInfrastructure(await postgres.CreateDatabaseAsync())
             .BuildServiceProvider();
@@ -125,7 +205,7 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         return action.Id;
     }
 
-    private static async Task Change(IServiceProvider sp, Guid id, Func<CorporateAction, Portal.Instruments.Domain.Abstractions.Result> step)
+    private static async Task Change(IServiceProvider sp, Guid id, Func<CorporateAction, Result> step)
     {
         await using var scope = sp.CreateAsyncScope();
         var action = (await scope.ServiceProvider.GetRequiredService<ICorporateActionRepository>().GetAsync(id, default))!;

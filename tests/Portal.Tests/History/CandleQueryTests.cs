@@ -10,11 +10,6 @@ public sealed class CandleQueryTests(PostgresFixture postgres)
     private static readonly Guid A = Guid.NewGuid();
     private static readonly DateTimeOffset Ten = new(2026, 11, 14, 10, 0, 0, TimeSpan.Zero);
 
-    private sealed class FixedTime(DateTimeOffset now) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => now;
-    }
-
     [Fact]
     public async Task One_minute_returns_candles_ascending()
     {

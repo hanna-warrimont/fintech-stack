@@ -30,6 +30,7 @@
     <ProjectReference Include="..\..\src\Instruments\Portal.Instruments.Infrastructure\Portal.Instruments.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Search\Portal.Search\Portal.Search.csproj" />
     <ProjectReference Include="..\..\src\History\Portal.History\Portal.History.csproj" />
+    <ProjectReference Include="..\..\src\Instruments\Portal.Instruments.Api\Portal.Instruments.Api.csproj" />
   </ItemGroup>
 
 </Project>
