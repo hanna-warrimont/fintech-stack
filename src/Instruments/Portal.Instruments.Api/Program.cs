@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Portal.Instruments.Api;
 using Portal.Instruments.Application;
 using Portal.Instruments.Infrastructure;
+using Portal.Instruments.Infrastructure.CorporateActions;
 using Portal.Instruments.Infrastructure.Outbox;
 using Portal.Messaging;
 
@@ -35,6 +36,9 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddSingleton<IProducer<string, string>>(_ =>
     new ProducerBuilder<string, string>(OutboxDispatcher.ProducerConfig(kafka)).Build());
 builder.Services.AddHostedService<OutboxDispatcher>();
+// Experiment 17: CorporateActions__JobInstances=2 startet den Job doppelt – SKIP LOCKED verhindert doppelte Wirksamkeit.
+for (var i = 0; i < builder.Configuration.GetValue("CorporateActions:JobInstances", 1); i++)
+    builder.Services.AddSingleton<IHostedService>(sp => ActivatorUtilities.CreateInstance<EffectivenessJob>(sp));
 
 var app = builder.Build();
 
