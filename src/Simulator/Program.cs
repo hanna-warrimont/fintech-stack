@@ -11,6 +11,10 @@ builder.Services.AddSingleton<IProducer<string, string>>(_ => new ProducerBuilde
     BootstrapServers = kafka,
     Acks = Acks.All,
 }).Build());
+builder.Services.AddSingleton(new ChaosSettings
+{
+    TicksPerSecondPerInstrument = builder.Configuration.GetValue("Simulator:TicksPerSecondPerInstrument", 2.0),
+});
 builder.Services.AddSingleton<TickPublisher>();
 builder.Services.AddSingleton<InstrumentCatalog>();
 builder.Services.AddHostedService(sp => new InstrumentCatalogConsumer(
@@ -27,4 +31,5 @@ builder.Services.AddHostedService<SimulatorWorker>();
 
 var app = builder.Build();
 app.MapDefaultEndpoints();
+app.MapChaosEndpoints();
 app.Run();
