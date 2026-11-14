@@ -162,6 +162,30 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         Assert.NotEqual(draft, approved);
     }
 
+    [Fact]
+    public async Task Isin_change_to_taken_isin_is_rejected_at_creation()
+    {
+        await using var sp = await Services(new FixedTime(Now));
+        var sap = await NewInstrument(sp);
+        await using (var scope = sp.CreateAsyncScope())
+            await scope.ServiceProvider.GetRequiredService<CreateInstrumentHandler>()
+                .Handle(new CreateInstrumentCommand("DE0007236101", null, "Siemens AG", InstrumentType.Share, "EUR"), default);
+
+        Assert.Equal(InstrumentErrors.DuplicateIsin, (await Create(sp, new CreateCorporateActionCommand(
+            sap, CorporateActionType.IsinChange, null, null, "DE0007236101", Due, "pia"))).Error);
+    }
+
+    [Fact]
+    public async Task Unknown_type_is_rejected_instead_of_becoming_a_delisting()
+    {
+        await using var sp = await Services(new FixedTime(Now));
+
+        var result = await Create(sp, new CreateCorporateActionCommand(
+            await NewInstrument(sp), (CorporateActionType)99, null, null, null, Due, "pia"));
+
+        Assert.Equal(CorporateActionErrors.InvalidType, result.Error);
+    }
+
     private static async Task<Result<Guid>> Create(IServiceProvider sp, CreateCorporateActionCommand command)
     {
         await using var scope = sp.CreateAsyncScope();

@@ -25,9 +25,12 @@ public sealed class CreateCorporateActionHandler(
             CorporateActionType.IsinChange => Isin.Create(command.NewIsin ?? "") is { IsSuccess: true } isin
                 ? CorporateAction.CreateIsinChange(instrument, isin.Value, command.EffectiveAt, command.User)
                 : InstrumentErrors.InvalidIsin,
-            _ => CorporateAction.CreateDelisting(instrument, command.EffectiveAt, command.User),
+            CorporateActionType.Delisting => CorporateAction.CreateDelisting(instrument, command.EffectiveAt, command.User),
+            _ => CorporateActionErrors.InvalidType, // nie still auf die folgenreichste Art ausweichen
         };
         if (action.IsFailure) return action.Error;
+        // Früh abweisen statt erst zum Stichtag scheitern (der Job fängt den Wettlauf trotzdem ab).
+        if (action.Value.NewIsin is { } newIsin && await instruments.IsinExistsAsync(newIsin, ct)) return InstrumentErrors.DuplicateIsin;
 
         actions.Add(action.Value);
         try

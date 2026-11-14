@@ -43,7 +43,10 @@ public static class BffEndpoints
         });
     }
 
-    /// <summary>Nur lokale Pfade – sonst wäre der Login ein offener Redirect auf fremde Seiten.</summary>
+    /// <summary>
+    /// Nur lokale Pfade – sonst wäre der Login ein offener Redirect auf fremde Seiten. Keine Steuerzeichen:
+    /// Browser entfernen Tab/Zeilenumbruch, aus „/\t/evil.example“ würde „//evil.example“.
+    /// </summary>
     public static string SafeReturnUrl(string? returnUrl) =>
-        returnUrl is ['/', not '/' and not '\\', ..] or "/" ? returnUrl : "/";
+        returnUrl is ['/', not '/' and not '\\', ..] or "/" && !returnUrl.Any(char.IsControl) ? returnUrl : "/";
 }

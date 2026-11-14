@@ -14,5 +14,6 @@ public static class CorporateActionErrors
     public static readonly Error AlreadyEffectiveDue = new("CorporateAction.AlreadyEffectiveDue", "Der Stichtag ist erreicht, die Maßnahme kann nicht mehr storniert werden.", ErrorType.Validation);
     public static readonly Error InstrumentDelisted = new("CorporateAction.InstrumentDelisted", "Für ein delistetes Instrument ist keine Maßnahme möglich.", ErrorType.Validation);
     public static readonly Error SameIsin = new("CorporateAction.SameIsin", "Die neue ISIN entspricht der aktuellen.", ErrorType.Validation);
+    public static readonly Error InvalidType = new("CorporateAction.InvalidType", "Unbekannte Art der Kapitalmaßnahme.", ErrorType.Validation);
     public static readonly Error InvalidSplitRatio = new("CorporateAction.InvalidSplitRatio", "Das Split-Verhältnis braucht zwei verschiedene Zahlen zwischen 1 und 1000.", ErrorType.Validation);
 }

@@ -34,5 +34,7 @@ public sealed class CsrfTests
     [InlineData("//evil.example", "/")]
     [InlineData("https://evil.example", "/")]
     [InlineData("/\\evil.example", "/")]
+    [InlineData("/\t/evil.example", "/")] // Browser entfernen Tab/Zeilenumbruch → //evil.example
+    [InlineData("/\n/evil.example", "/")]
     public void Return_url_must_be_local(string? returnUrl, string expected) => Assert.Equal(expected, BffEndpoints.SafeReturnUrl(returnUrl));
 }

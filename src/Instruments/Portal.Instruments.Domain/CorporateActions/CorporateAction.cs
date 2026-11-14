@@ -16,6 +16,9 @@ namespace Portal.Instruments.Domain.CorporateActions;
 /// </summary>
 public sealed class CorporateAction : Entity
 {
+    /// <summary>Entscheider, wenn der Wirksamkeits-Job eine Maßnahme verwirft.</summary>
+    public const string SystemUser = "system";
+
     private CorporateAction() { } // für EF
 
     public Guid Id { get; private set; }
@@ -104,6 +107,14 @@ public sealed class CorporateAction : Entity
         Raise(new CorporateActionBecameEffective(Id, InstrumentId));
         return Result.Success();
     }
+
+    /// <summary>
+    /// Zum Stichtag nicht anwendbar (Instrument inzwischen delistet, neue ISIN inzwischen vergeben): Die Maßnahme
+    /// endet als storniert, statt bei jedem Job-Lauf erneut zu scheitern und andere Maßnahmen zu blockieren.
+    /// </summary>
+    public Result CancelAsInapplicable() => Status == CorporateActionStatus.Approved
+        ? Decide(CorporateActionStatus.Cancelled, SystemUser, new CorporateActionCancelled(Id, InstrumentId))
+        : Result.Failure(CorporateActionErrors.InvalidTransition);
 
     private Result Decide(CorporateActionStatus to, string user, IDomainEvent @event)
     {

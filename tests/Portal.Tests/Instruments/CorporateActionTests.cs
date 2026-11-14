@@ -195,4 +195,17 @@ public sealed class CorporateActionTests
         Assert.Equal(1, instrument.Revision);
         Assert.Equal(CorporateActionStatus.Effective, action.Status);
     }
+
+    [Fact]
+    public void Inapplicable_approved_action_is_cancelled_by_system()
+    {
+        var action = Approved();
+
+        Assert.True(action.CancelAsInapplicable().IsSuccess);
+
+        Assert.Equal(CorporateActionStatus.Cancelled, action.Status);
+        Assert.Equal(CorporateAction.SystemUser, action.DecidedBy);
+        Assert.Contains(new CorporateActionCancelled(action.Id, action.InstrumentId), action.DomainEvents);
+        Assert.Equal(CorporateActionErrors.InvalidTransition, Split().CancelAsInapplicable().Error);
+    }
 }

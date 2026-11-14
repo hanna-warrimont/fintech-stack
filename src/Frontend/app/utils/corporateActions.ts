@@ -24,6 +24,7 @@ export async function send(url: string, body?: unknown): Promise<string | null> 
     return null
   }
   catch (e: any) {
+    if (e?.status === 401) return 'Sitzung abgelaufen – bitte neu anmelden.'
     return e?.data?.title ?? (e?.status === 403 ? 'Dafür fehlt dir die Rolle.' : 'Aktion fehlgeschlagen.')
   }
 }

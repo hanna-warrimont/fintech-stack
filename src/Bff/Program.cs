@@ -25,6 +25,11 @@ builder.Services.AddAuthentication(o =>
         o.Cookie.HttpOnly = true;
         o.Cookie.SameSite = SameSiteMode.Lax;
         o.SessionStore = new MemoryTicketStore();
+        o.Events.OnValidatePrincipal = context =>
+        {
+            if (Session.IsExpired(context.Properties, DateTimeOffset.UtcNow)) context.RejectPrincipal();
+            return Task.CompletedTask;
+        };
     })
     .AddOpenIdConnect(o =>
     {

@@ -6,7 +6,12 @@ const actions = ref<CorporateAction[]>([])
 const message = ref<string | null>(null)
 
 async function load() {
-  actions.value = await $fetch<CorporateAction[]>('/api/corporate-actions').catch(() => [])
+  try {
+    actions.value = await $fetch<CorporateAction[]>('/api/corporate-actions')
+  }
+  catch (e: any) {
+    message.value = e?.status === 401 ? 'Sitzung abgelaufen – bitte neu anmelden.' : 'Arbeitsliste nicht verfügbar.'
+  }
 }
 
 // Eventual Consistency sichtbar machen: Solange etwas freigegeben, aber noch nicht wirksam ist, alle 10 s nachsehen.

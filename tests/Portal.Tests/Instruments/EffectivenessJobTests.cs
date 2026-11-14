@@ -103,6 +103,48 @@ public sealed class EffectivenessJobTests(PostgresFixture postgres)
         Assert.Equal(20, await db.ExecuteScalarAsync<int>("SELECT count(*) FROM corporate_actions WHERE status = 'Effective'"));
     }
 
+    [Fact]
+    public async Task Inapplicable_action_is_cancelled_and_others_still_become_effective()
+    {
+        var (sp, time) = await Services();
+        await using var _ = sp;
+        var instrumentId = await NewInstrument(sp);
+        var first = await Approved(sp, instrumentId, CorporateActionType.Delisting, T0.AddMinutes(2));
+        var second = await Approved(sp, instrumentId, CorporateActionType.Delisting, T0.AddDays(1)); // nach dem ersten nicht mehr anwendbar
+        var split = await Approved(sp, instrumentId, CorporateActionType.Split, T0.AddDays(2));
+        time.Now = T0.AddDays(3);
+
+        await Job(sp, time).RunOnceAsync(default);
+
+        Assert.Equal(["Effective", "Cancelled", "Effective"], await Statuses(sp, first, second, split));
+        Assert.Equal(0, await Job(sp, time).RunOnceAsync(default)); // nichts bleibt hängen
+    }
+
+    [Fact]
+    public async Task Isin_change_to_meanwhile_taken_isin_is_cancelled_and_others_still_become_effective()
+    {
+        var (sp, time) = await Services();
+        await using var _ = sp;
+        var sap = await NewInstrument(sp);
+        var change = await Approved(sp, sap, CorporateActionType.IsinChange, T0.AddMinutes(2), newIsin: "US0378331005");
+        var split = await Approved(sp, sap, CorporateActionType.Split, T0.AddMinutes(3));
+        await NewInstrument(sp, "US0378331005"); // ISIN nach der Freigabe vergeben
+        time.Now = T0.AddMinutes(5);
+
+        await Job(sp, time).RunOnceAsync(default);
+
+        Assert.Equal(["Cancelled", "Effective"], await Statuses(sp, change, split));
+        await using var db = Data(sp);
+        Assert.Equal(1, await db.ExecuteScalarAsync<int>("SELECT count(*) FROM outbox_messages WHERE type = @t", new { t = CorporateActionEvent.Cancelled }));
+    }
+
+    private static async Task<string[]> Statuses(IServiceProvider sp, params Guid[] ids)
+    {
+        await using var db = Data(sp);
+        var statuses = (await db.QueryAsync<(Guid Id, string Status)>("SELECT id, status FROM corporate_actions")).ToDictionary(r => r.Id, r => r.Status);
+        return ids.Select(id => statuses[id]).ToArray();
+    }
+
     private async Task<(ServiceProvider Sp, FixedTime Time)> Services()
     {
         var time = new FixedTime(T0);
@@ -120,11 +162,11 @@ public sealed class EffectivenessJobTests(PostgresFixture postgres)
     private static EffectivenessJob Job(IServiceProvider sp, TimeProvider time) =>
         new(sp.GetRequiredService<IServiceScopeFactory>(), time, NullLogger<EffectivenessJob>.Instance);
 
-    private static async Task<Guid> NewInstrument(IServiceProvider sp)
+    private static async Task<Guid> NewInstrument(IServiceProvider sp, string isin = "DE0007164600")
     {
         await using var scope = sp.CreateAsyncScope();
         return (await scope.ServiceProvider.GetRequiredService<CreateInstrumentHandler>()
-            .Handle(new CreateInstrumentCommand("DE0007164600", null, "SAP SE", InstrumentType.Share, "EUR"), default)).Value;
+            .Handle(new CreateInstrumentCommand(isin, null, "Instrument " + isin, InstrumentType.Share, "EUR"), default)).Value;
     }
 
     private static async Task<Guid> Approved(IServiceProvider sp, Guid instrumentId, CorporateActionType type, DateTimeOffset effectiveAt, string? newIsin = null)
