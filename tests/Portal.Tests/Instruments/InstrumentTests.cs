@@ -54,4 +54,28 @@ public sealed class InstrumentTests
 
     [Fact]
     public void Rename_rejects_blank_name() => Assert.Equal(InstrumentErrors.NameRequired, Create().Value.Rename(" ").Error);
+
+    [Fact]
+    public void Change_isin_raises_event_and_bumps_revision()
+    {
+        var instrument = Create().Value;
+        var isin = Isin.Create("US0378331005").Value;
+
+        Assert.True(instrument.ChangeIsin(isin).IsSuccess);
+
+        Assert.Equal(isin, instrument.Isin);
+        Assert.Equal(2, instrument.Revision);
+        Assert.Contains(new InstrumentIsinChanged(instrument.Id, isin.Value), instrument.DomainEvents);
+    }
+
+    [Fact]
+    public void Delist_twice_is_rejected()
+    {
+        var instrument = Create().Value;
+
+        Assert.True(instrument.Delist().IsSuccess);
+        Assert.Equal(InstrumentErrors.AlreadyDelisted, instrument.Delist().Error);
+        Assert.Equal(InstrumentStatus.Delisted, instrument.Status);
+        Assert.Contains(new InstrumentDelisted(instrument.Id), instrument.DomainEvents);
+    }
 }

@@ -5,7 +5,7 @@ Jede Zeile ist ein Konzept: wo es im Code steht, welcher Test es absichert und w
 | # | Konzept | Runde | Ort im Code | Test | Experiment | Status |
 |---|---|---|---|---|---|---|
 | 1 | Value Object mit Validierung (ISIN, Währung) | 2 | `src/Instruments/Portal.Instruments.Domain/Instruments/Isin.cs` (+ `Currency.cs`, `Wkn.cs`) | `IsinTests`, `CurrencyTests`, `WknTests` | – | drin |
-| 2 | Aggregat mit Zustandsautomat + Vier-Augen-Regel | 4 | | | – | offen |
+| 2 | Aggregat mit Zustandsautomat + Vier-Augen-Regel | 4 | `src/Instruments/Portal.Instruments.Domain/CorporateActions/CorporateAction.cs` | `CorporateActionTests` | – | drin |
 | 3 | Result-Pattern, Fehlerkatalog | 2 | `src/Instruments/Portal.Instruments.Domain/Abstractions/Result.cs` + `Instruments/InstrumentErrors.cs` | `InstrumentTests` | – | drin |
 | 4 | Domain Event → Integration Event | 2 | `src/Instruments/Portal.Instruments.Infrastructure/Outbox/IntegrationEventMapper.cs` (Aufruf in `InstrumentDbContext.SaveChangesAsync`) | `Create_persists_and_writes_snapshot_to_outbox_in_same_transaction` | – | drin |
 | 5 | Optimistic Concurrency | 2+4 | `src/Instruments/Portal.Instruments.Infrastructure/Configurations/InstrumentConfiguration.cs` (Revision als Concurrency-Token; Kapitalmaßnahmen folgen in Runde 4) | `Concurrent_renames_one_wins_other_conflicts` | Zwei Freigaben gleichzeitig | teilweise |

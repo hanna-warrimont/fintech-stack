@@ -51,6 +51,27 @@ public sealed class Instrument : Entity
         return Result.Success();
     }
 
+    /// <summary>Folge eines wirksamen ISIN-Wechsels. Die <see cref="Id"/> bleibt – darum ist sie der Kafka-Key, nicht die ISIN.</summary>
+    public Result ChangeIsin(Isin isin)
+    {
+        if (isin == Isin) return Result.Success();
+
+        Isin = isin;
+        Revision++;
+        Raise(new InstrumentIsinChanged(Id, isin.Value));
+        return Result.Success();
+    }
+
+    public Result Delist()
+    {
+        if (Status == InstrumentStatus.Delisted) return Result.Failure(InstrumentErrors.AlreadyDelisted);
+
+        Status = InstrumentStatus.Delisted;
+        Revision++;
+        Raise(new InstrumentDelisted(Id));
+        return Result.Success();
+    }
+
     private static Error? ValidateName(string? name) => name?.Trim() switch
     {
         null or "" => InstrumentErrors.NameRequired,
