@@ -27,7 +27,7 @@ public static class ChaosEndpoints
                 return Results.Problem("Kein aktives Instrument bekannt.", statusCode: 409);
             var delivery = await producer.ProduceAsync(Topics.Ticks,
                 new Message<string, string> { Key = instrument.Id.ToString("D"), Value = "kein json" }, ct);
-            return Results.Ok(new { delivery.Partition.Value, Offset = delivery.Offset.Value });
+            return Results.Ok(new { Partition = delivery.Partition.Value, Offset = delivery.Offset.Value });
         });
     }
 

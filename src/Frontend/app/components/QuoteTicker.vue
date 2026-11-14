@@ -1,6 +1,9 @@
 <script setup lang="ts">
-const props = defineProps<{ instrumentId: string, currency: string }>()
-const { tick, previous, connected } = useQuoteStream(props.instrumentId)
+import type { Tick } from '~/composables/useQuoteStream'
+
+const props = defineProps<{ tick: Tick | null, previous: Tick | null, connected: boolean, currency: string }>()
+const tick = toRef(props, 'tick')
+const previous = toRef(props, 'previous')
 
 const direction = computed(() => {
   if (!tick.value || !previous.value || tick.value.price === previous.value.price) return 'gleich'
@@ -17,7 +20,7 @@ const time = computed(() => tick.value
 <template>
   <!-- ponytail: kein aria-live, 2 Updates/s wären für Screenreader zu laut -->
   <section class="ticker" aria-label="Aktueller Kurs">
-    <p v-if="!connected && !tick">Verbindung wird hergestellt …</p>
+    <p v-if="!props.connected && !tick">Verbindung wird hergestellt …</p>
     <template v-else-if="tick">
       <span class="price" :class="direction">
         <span aria-hidden="true">{{ direction === 'steigt' ? '▲' : direction === 'faellt' ? '▼' : '■' }}</span>
@@ -25,7 +28,7 @@ const time = computed(() => tick.value
       </span>
       <span class="sr-only">{{ direction === 'steigt' ? 'steigend' : direction === 'faellt' ? 'fallend' : 'unverändert' }}</span>
       <small>Stand {{ time }}</small>
-      <small v-if="!connected"> · Verbindung wird hergestellt …</small>
+      <small v-if="!props.connected"> · Verbindung wird hergestellt …</small>
     </template>
     <p v-else>Warte auf ersten Kurs …</p>
   </section>

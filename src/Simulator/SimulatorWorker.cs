@@ -1,4 +1,5 @@
 using Portal.Messaging;
+using Portal.Messaging.Contracts;
 
 namespace Portal.Simulator;
 
@@ -9,6 +10,18 @@ public sealed class SimulatorWorker(
 {
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
+        async Task Send(Tick tick)
+        {
+            try
+            {
+                await publisher.PublishAsync(tick, ct);
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                log.LogWarning(e, "Tick für {InstrumentId} nicht gesendet", tick.InstrumentId);
+            }
+        }
+
         await Topics.EnsureTopicAsync(config.GetConnectionString("kafka")!, Topics.Ticks);
 
         var rate = chaos.TicksPerSecondPerInstrument;
@@ -28,6 +41,9 @@ public sealed class SimulatorWorker(
             }
             if (chaos.Paused) continue;
 
+            // Alle Ticks eines Takts gemeinsam senden und gemeinsam auf die Bestätigung warten: Einzeln gewartet
+            // schafft der Simulator nur ~200 Ticks/s (eine Broker-Runde pro Tick) – zu wenig für das Lag-Experiment.
+            var sends = new List<Task>();
             foreach (var instrument in catalog.Active)
             {
                 var price = PriceWalk.Next(prices.GetValueOrDefault(instrument.Id, StartPrices.For(instrument.Isin)), rng);
@@ -35,18 +51,9 @@ public sealed class SimulatorWorker(
                 var seq = seqs.GetValueOrDefault(instrument.Id, time.GetUtcNow().ToUnixTimeMilliseconds());
                 var ticks = TickPlan.For(instrument.Id, price, rng.Next(1, 501), time.GetUtcNow(), ref seq, chaos);
                 seqs[instrument.Id] = seq;
-                foreach (var tick in ticks)
-                {
-                    try
-                    {
-                        await publisher.PublishAsync(tick, ct);
-                    }
-                    catch (Exception e) when (e is not OperationCanceledException)
-                    {
-                        log.LogWarning(e, "Tick für {InstrumentId} nicht gesendet", instrument.Id);
-                    }
-                }
+                sends.AddRange(ticks.Select(Send));
             }
+            await Task.WhenAll(sends);
         }
     }
 }

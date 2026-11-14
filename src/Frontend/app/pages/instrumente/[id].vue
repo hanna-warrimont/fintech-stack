@@ -2,6 +2,8 @@
 interface Instrument { id: string, isin: string, name: string, currency: string }
 
 const id = useRoute().params.id as string
+// Ein Stream für Ticker UND Chart – kein zweiter EventSource pro Seite.
+const { tick, previous, connected } = useQuoteStream(id)
 const { data: instrument, error } = await useFetch<Instrument>(`/api/instruments/${id}`)
 </script>
 
@@ -15,6 +17,9 @@ const { data: instrument, error } = await useFetch<Instrument>(`/api/instruments
   <template v-else-if="instrument">
     <h1>{{ instrument.name }}</h1>
     <p>ISIN {{ instrument.isin }} · {{ instrument.currency }}</p>
-    <QuoteTicker :instrument-id="instrument.id" :currency="instrument.currency" />
+    <QuoteTicker :tick="tick" :previous="previous" :connected="connected" :currency="instrument.currency" />
+    <ClientOnly>
+      <CandleChart :instrument-id="instrument.id" :tick="tick" />
+    </ClientOnly>
   </template>
 </template>

@@ -10,6 +10,7 @@ builder.Services.AddSingleton<IProducer<string, string>>(_ => new ProducerBuilde
 {
     BootstrapServers = kafka,
     Acks = Acks.All,
+    EnableIdempotence = true, // Ticks eines Takts gehen parallel raus: Reihenfolge pro Partition auch bei Retries
 }).Build());
 builder.Services.AddSingleton(new ChaosSettings
 {
