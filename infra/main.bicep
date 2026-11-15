@@ -114,6 +114,7 @@ module instrument 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/instrument:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: concat(kafkaEnv, [
       { name: 'ConnectionStrings__instrumentdb', secretRef: 'db' }
       { name: 'services__keycloak__http__0', value: keycloakUrl }
@@ -134,6 +135,7 @@ module search 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/search:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: concat(kafkaEnv, [ { name: 'ConnectionStrings__searchdb', secretRef: 'db' } ])
     secrets: union(kafkaSecret, { db: pg(postgres.outputs.fqdn, 'searchdb', postgresAdminPassword) })
   }
@@ -151,6 +153,7 @@ module history 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/history:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: concat(kafkaEnv, [ { name: 'ConnectionStrings__historydb', secretRef: 'db' } ])
     secrets: union(kafkaSecret, { db: pg(postgres.outputs.fqdn, 'historydb', postgresAdminPassword) })
   }
@@ -168,6 +171,7 @@ module quote 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/quote:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: kafkaEnv
     secrets: kafkaSecret
   }
@@ -185,6 +189,7 @@ module simulator 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/simulator:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: kafkaEnv
     secrets: kafkaSecret
   }
@@ -202,6 +207,7 @@ module bff 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/bff:${imageTag}'
     external: false // nur über den Nuxt-Proxy erreichbar
     targetPort: 8080
+    healthChecks: true
     env: [
       { name: 'services__instrument__http__0', value: 'http://instrument' }
       { name: 'services__search__http__0', value: 'http://search' }

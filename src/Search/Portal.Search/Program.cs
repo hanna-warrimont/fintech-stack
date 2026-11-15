@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Confluent.Kafka;
 using Npgsql;
 using Portal.Messaging;
@@ -8,6 +9,8 @@ builder.AddServiceDefaults();
 
 var db = NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("searchdb")!);
 builder.Services.AddSingleton(db);
+builder.Services.AddSingleton<DbDataSource>(db);
+builder.AddDatabaseHealthCheck();
 builder.Services.AddSingleton<InstrumentProjection>();
 builder.Services.AddSingleton<SearchQuery>();
 builder.Services.AddHostedService(sp => new SnapshotConsumer(

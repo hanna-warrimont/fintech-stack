@@ -12,6 +12,16 @@ param memory string = '0.5Gi'
 param env array = []
 @secure()
 param secrets object = {} // Name → Wert; in env per { name, secretRef: <Name> } referenziert
+@description('true für die .NET-Dienste: Probes auf /alive und /health aus ServiceDefaults. Sonst die Standard-Probes von Container Apps.')
+param healthChecks bool = false
+
+// Startup schützt die Liveness, solange der Dienst vor app.Run() migriert und Topics anlegt (bis ~100 s).
+// Liveness = Prozess lebt (nur der "self"-Check); Readiness = Datenbank erreichbar, sonst kein Traffic, aber kein Neustart.
+var probes = healthChecks ? [
+  { type: 'Startup', httpGet: { path: '/alive', port: targetPort }, initialDelaySeconds: 5, periodSeconds: 10, failureThreshold: 10 }
+  { type: 'Liveness', httpGet: { path: '/alive', port: targetPort }, periodSeconds: 10, failureThreshold: 3 }
+  { type: 'Readiness', httpGet: { path: '/health', port: targetPort }, periodSeconds: 10, failureThreshold: 3 }
+] : []
 
 resource app 'Microsoft.App/containerApps@2024-03-01' = {
   name: name // = Aspire-Ressourcenname: Im Environment löst http://<name> auf (Service Discovery wie lokal)
@@ -48,6 +58,7 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'grpc' }
             { name: 'OTEL_SERVICE_NAME', value: name }
           ])
+          probes: probes
         }
       ]
       // Kafka-Consumer laufen dauerhaft; Skalierung auf 0 ist hier nicht sinnvoll – Kosten begrenzt der Abriss.

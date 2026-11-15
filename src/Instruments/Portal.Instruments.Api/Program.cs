@@ -18,6 +18,7 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services
     .AddInstrumentApplication(builder.Configuration.GetValue<TimeSpan?>("CorporateActions:LeadTime"))
     .AddInstrumentInfrastructure(builder.Configuration.GetConnectionString("instrumentdb")!);
+builder.AddDatabaseHealthCheck();
 // Der Instrument-Service prüft selbst: Signatur und Aussteller (Keycloak-Realm), Audience portal-api, Rollen.
 // Das BFF reicht das Access Token nur durch – es entscheidet nicht über Rechte.
 builder.Services.AddAuthentication().AddJwtBearer(o =>

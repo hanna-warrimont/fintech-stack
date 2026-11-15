@@ -13,30 +13,32 @@ var historyDb = postgres.AddDatabase("historydb");
 var keycloak = builder.AddKeycloak("keycloak", 8080).WithoutHttpsCertificate().WithRealmImport("./keycloak");
 #pragma warning restore ASPIRECERTIFICATES001
 
-var instrument = builder.AddProject<Projects.Portal_Instruments_Api>("instrument")
+// WithHttpHealthCheck("/health"): Das Dashboard zeigt den Zustand, und WaitFor wartet auf "healthy" statt nur auf
+// "gestartet" – der Simulator also, bis Instrument migriert, geseedet und mit seiner Datenbank verbunden ist.
+var instrument = builder.AddProject<Projects.Portal_Instruments_Api>("instrument").WithHttpHealthCheck("/health")
     .WithReference(instrumentDb).WithReference(kafka).WithReference(keycloak)
     .WaitFor(instrumentDb).WaitFor(kafka).WaitFor(keycloak)
     // Experiment 17: InstrumentJobInstances=2 lässt den Wirksamkeits-Job zweimal im Instrument-Service laufen.
     .WithEnvironment("CorporateActions__JobInstances", builder.Configuration["InstrumentJobInstances"] ?? "1");
 
-var search = builder.AddProject<Projects.Portal_Search>("search")
+var search = builder.AddProject<Projects.Portal_Search>("search").WithHttpHealthCheck("/health")
     .WithReference(searchDb).WithReference(kafka).WaitFor(searchDb).WaitFor(kafka);
 
 // Replikate per Umgebungsvariable (HistoryReplicas=2) für das Experiment Arbeitsteilung. Neuaufbau nur mit 1 Replikat sicher.
-var history = builder.AddProject<Projects.Portal_History>("history")
+var history = builder.AddProject<Projects.Portal_History>("history").WithHttpHealthCheck("/health")
     .WithReference(historyDb).WithReference(kafka).WaitFor(historyDb).WaitFor(kafka)
     .WithReplicas(int.Parse(builder.Configuration["HistoryReplicas"] ?? "1"));
 // WaitFor(instrument) ist nur eine Optimierung: Der Instrument-Service legt instruments.v1 an.
-var simulator = builder.AddProject<Projects.Portal_Simulator>("simulator")
+var simulator = builder.AddProject<Projects.Portal_Simulator>("simulator").WithHttpHealthCheck("/health")
     .WithReference(kafka).WaitFor(kafka).WaitFor(instrument);
 
 // Zwei Replikate zeigen Broadcast: jede Instanz hat eine eigene Consumer-Group und sieht alle Ticks.
 // WaitFor(simulator) ist nur eine Optimierung: Der Simulator legt ticks.v1 mit 6 Partitionen an,
 // und Quote übersteht ein (noch) fehlendes Topic ohnehin (siehe TickConsumer).
-var quote = builder.AddProject<Projects.Portal_Quote>("quote")
+var quote = builder.AddProject<Projects.Portal_Quote>("quote").WithHttpHealthCheck("/health")
     .WithReference(kafka).WaitFor(simulator).WithReplicas(2);
 
-var bff = builder.AddProject<Projects.Portal_Bff>("bff")
+var bff = builder.AddProject<Projects.Portal_Bff>("bff").WithHttpHealthCheck("/health")
     .WithReference(instrument).WithReference(search).WithReference(quote).WithReference(history)
     .WithReference(keycloak).WaitFor(keycloak).WithExternalHttpEndpoints();
 

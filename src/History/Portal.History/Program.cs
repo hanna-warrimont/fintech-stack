@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Confluent.Kafka;
 using Npgsql;
 using Portal.History;
@@ -10,6 +11,8 @@ const string group = "history";
 var kafka = new KafkaSettings(builder.Configuration);
 var db = NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("historydb")!);
 builder.Services.AddSingleton(db);
+builder.Services.AddSingleton<DbDataSource>(db);
+builder.AddDatabaseHealthCheck();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<CandleStore>();
 builder.Services.AddSingleton<CandleQuery>();

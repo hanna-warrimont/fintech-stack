@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
@@ -106,22 +107,43 @@ public static class Extensions
         return builder;
     }
 
+    /// <summary>
+    /// Readiness hängt an der eigenen Datenbank (<see cref="DbDataSource"/> muss registriert sein). Kafka zählt bewusst
+    /// nicht: Die HTTP-Seite liest nur aus der DB, und Schreibendes geht über die Outbox – genau damit ein Kafka-Ausfall
+    /// den Dienst nicht lahmlegt.
+    /// </summary>
+    public static TBuilder AddDatabaseHealthCheck<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
+    {
+        builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("db", failureStatus: null, tags: [], timeout: TimeSpan.FromSeconds(5));
+        return builder;
+    }
+
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
-        {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
+        // In allen Umgebungen: Die Probes der Container Apps fragen diese Pfade ab. Erreichbar sind sie nur intern
+        // (die .NET-Dienste haben internen Ingress, der Nuxt-Proxy reicht nur /api durch), und die Antwort ist nur
+        // "Healthy"/"Unhealthy" ohne Details. Siehe https://aka.ms/aspire/healthchecks
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live")
-            });
-        }
+        // Readiness: alle Checks (inkl. Datenbank) – sonst bekommt der Dienst keinen Traffic.
+        app.MapHealthChecks(HealthEndpointPath);
+
+        // Liveness: nur "live" – eine kurz fehlende Datenbank ist kein Grund, den Container neu zu starten.
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live")
+        });
 
         return app;
+    }
+}
+
+internal sealed class DatabaseHealthCheck(DbDataSource db) : IHealthCheck
+{
+    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
+    {
+        // Ausnahmen wertet der HealthCheckService selbst als Unhealthy.
+        await using var command = db.CreateCommand("SELECT 1");
+        await command.ExecuteScalarAsync(ct);
+        return HealthCheckResult.Healthy();
     }
 }
