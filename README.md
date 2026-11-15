@@ -8,7 +8,7 @@ Jedes Konzept steht an einer Stelle im Code und ist durch einen Test abgesichert
 
 - .NET 10 SDK (Version in `global.json`)
 - Docker (Kafka, Postgres, Keycloak und die Integrationstests laufen in Containern)
-- Node 22 und npm (Frontend)
+- Node 24 (aktuelles LTS) mit npm 11 (Frontend)
 
 ## Starten
 
