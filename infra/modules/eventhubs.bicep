@@ -21,6 +21,7 @@ var hubs = [
   { name: 'corporate-actions.v1', policy: 'Delete', hours: 168 } // lokal unbegrenzt – hier das Maximum
   { name: 'ticks.v1.history.dlt', policy: 'Delete', hours: 168 }
   { name: 'corporate-actions.v1.history-corporate-actions.dlt', policy: 'Delete', hours: 168 }
+  { name: 'instruments.v1.search.dlt', policy: 'Delete', hours: 168 }
 ]
 
 resource eventHubs 'Microsoft.EventHub/namespaces/eventhubs@2024-01-01' = [for hub in hubs: {

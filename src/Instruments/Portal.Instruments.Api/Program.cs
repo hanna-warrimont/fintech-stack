@@ -37,6 +37,8 @@ builder.Services.AddAuthorizationBuilder()
 builder.Services.AddSingleton<IProducer<string, string>>(_ =>
     new ProducerBuilder<string, string>(kafka.Producer()).Build());
 builder.Services.AddHostedService<OutboxDispatcher>();
+// Gesendete Outbox-Zeilen 7 Tage behalten (zum Nachsehen, was rausging), dann löschen.
+builder.Services.AddHostedService(sp => ActivatorUtilities.CreateInstance<RetentionJob>(sp, RetentionJob.Outbox, TimeSpan.FromDays(7)));
 // Experiment 17: CorporateActions__JobInstances=2 startet den Job doppelt – SKIP LOCKED verhindert doppelte Wirksamkeit.
 for (var i = 0; i < builder.Configuration.GetValue("CorporateActions:JobInstances", 1); i++)
     builder.Services.AddSingleton<IHostedService>(sp => ActivatorUtilities.CreateInstance<EffectivenessJob>(sp));

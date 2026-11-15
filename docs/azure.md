@@ -43,7 +43,7 @@ Danach `az group exists` → `false`. **Ein Budget ist kein Deckel.** Es schickt
 | instrument, search, history, quote, simulator | intern | je 0,25 / 0,5 | wie lokal |
 
 Dazu kommen:
-- **Event Hubs Standard** (1 TU) mit `ticks.v1`, `instruments.v1` (kompaktiert), `corporate-actions.v1` und den 2 DLTs
+- **Event Hubs Standard** (1 TU) mit `ticks.v1`, `instruments.v1` (kompaktiert), `corporate-actions.v1` und den 3 DLTs
 - **Postgres Flexible Server B1ms** mit `instrumentdb`, `searchdb`, `historydb` und `keycloak`. Jede Datenbank hat ihre eigene Login-Rolle, nur der Job `db-roles` nutzt den Admin. Noch nicht in Azure geprüft: wem die per Bicep angelegten Datenbanken gehören. `roles.sql` braucht Owner-Rechte über den Admin, der Test `DatabaseRolesTests` bildet genau das nach.
 - **Container Registry Basic**
 - **Log Analytics** (höchstens 0,5 GB pro Tag)

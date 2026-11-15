@@ -32,6 +32,9 @@ builder.Services.AddHostedService(sp => new CorporateActionConsumer(
     kafka.Consumer(CorporateActionConsumer.Group, AutoOffsetReset.Earliest), // neue Instanz/DB: alle Splits von Anfang an
     sp.GetRequiredService<ILogger<CorporateActionConsumer>>()));
 
+// Inbox 30 Tage: Wiederholte Maßnahmen danach fängt der Primärschlüssel von adjustments ab.
+builder.Services.AddHostedService(sp => ActivatorUtilities.CreateInstance<RetentionJob>(sp, RetentionJob.Inbox, TimeSpan.FromDays(30)));
+
 var app = builder.Build();
 
 await HistorySchema.EnsureAsync(db, CancellationToken.None);
