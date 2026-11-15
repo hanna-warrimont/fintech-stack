@@ -35,7 +35,10 @@ public sealed class KafkaSettings(IConfiguration config)
         return producer;
     }
 
-    /// <summary>Manueller Commit ist überall Pflicht – die Dienste committen selbst (oder bewusst gar nicht).</summary>
+    /// <summary>
+    /// Kein Auto-Commit als Standard: Die Dienste entscheiden selbst, wann ein Offset als erledigt gilt – Search committet
+    /// synchron pro Nachricht, History merkt per StoreOffset und lässt sammeln, Quote und Simulator committen bewusst gar nicht.
+    /// </summary>
     public ConsumerConfig Consumer(string groupId, AutoOffsetReset reset)
     {
         var consumer = Apply(new ConsumerConfig { GroupId = groupId, AutoOffsetReset = reset, EnableAutoCommit = false });
