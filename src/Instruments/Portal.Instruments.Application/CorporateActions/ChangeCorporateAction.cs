@@ -7,7 +7,7 @@ namespace Portal.Instruments.Application.CorporateActions;
 
 public enum CorporateActionStep { Submit, Withdraw, Discard, Approve, Reject, Cancel }
 
-public sealed record ChangeCorporateActionCommand(Guid Id, CorporateActionStep Step, string User);
+public sealed record ChangeCorporateActionCommand(Guid Id, CorporateActionStep Step, Actor User);
 
 /// <summary>Ein Arbeitsschritt am Aggregat. Die Regeln (Vier-Augen, Vorlauf, Zustände) prüft das Aggregat selbst.</summary>
 public sealed class ChangeCorporateActionHandler(

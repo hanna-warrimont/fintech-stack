@@ -35,6 +35,12 @@ namespace Portal.Instruments.Infrastructure.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("created_by");
 
+                    b.Property<string>("CreatedById")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("created_by_id");
+
                     b.Property<string>("DecidedBy")
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)")

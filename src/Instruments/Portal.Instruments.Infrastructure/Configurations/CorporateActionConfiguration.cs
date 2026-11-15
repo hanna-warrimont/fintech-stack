@@ -24,6 +24,7 @@ internal sealed class CorporateActionConfiguration : IEntityTypeConfiguration<Co
             .HasConversion(v => v!.Value, v => Isin.Create(v).Value);
         b.Property(a => a.EffectiveAt).HasColumnName("effective_at");
         b.Property(a => a.Status).HasColumnName("status").HasConversion<string>();
+        b.Property(a => a.CreatedById).HasColumnName("created_by_id").HasMaxLength(100);
         b.Property(a => a.CreatedBy).HasColumnName("created_by").HasMaxLength(100);
         b.Property(a => a.DecidedBy).HasColumnName("decided_by").HasMaxLength(100);
         // Optimistic Concurrency wie beim Instrument: zwei gleichzeitige Freigaben → der zweite Speichervorgang verliert.

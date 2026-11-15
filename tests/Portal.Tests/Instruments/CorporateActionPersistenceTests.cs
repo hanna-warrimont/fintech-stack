@@ -12,6 +12,7 @@ using Portal.Instruments.Infrastructure;
 using Portal.Messaging;
 using Portal.Messaging.Contracts;
 using Portal.Instruments.Domain.Abstractions;
+using static Portal.Tests.Instruments.Users;
 
 namespace Portal.Tests.Instruments;
 
@@ -28,7 +29,7 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         var id = await NewSplit(sp, Due);
 
         await Change(sp, id, a => a.Submit());
-        await Change(sp, id, a => a.Approve("fred", Now, TimeSpan.FromMinutes(1)));
+        await Change(sp, id, a => a.Approve(Fred, Now, TimeSpan.FromMinutes(1)));
 
         await using var db = Data(sp);
         var row = Assert.Single(await Outbox(db, Topics.CorporateActions));
@@ -64,7 +65,7 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         await using var scope = sp.CreateAsyncScope();
         var instrument = (await scope.ServiceProvider.GetRequiredService<IInstrumentRepository>().GetAsync(instrumentId, default))!;
         scope.ServiceProvider.GetRequiredService<ICorporateActionRepository>()
-            .Add(CorporateAction.CreateDelisting(instrument, Due, "pia").Value); // andere Art
+            .Add(CorporateAction.CreateDelisting(instrument, Due, Pia).Value); // andere Art
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(default);
     }
 
@@ -79,8 +80,8 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         await using var second = sp.CreateAsyncScope();
         var a1 = (await first.ServiceProvider.GetRequiredService<ICorporateActionRepository>().GetAsync(id, default))!;
         var a2 = (await second.ServiceProvider.GetRequiredService<ICorporateActionRepository>().GetAsync(id, default))!;
-        a1.Approve("fred", Now, TimeSpan.FromMinutes(1));
-        a2.Approve("frieda", Now, TimeSpan.FromMinutes(1));
+        a1.Approve(Fred, Now, TimeSpan.FromMinutes(1));
+        a2.Approve(Frieda, Now, TimeSpan.FromMinutes(1));
 
         await first.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(default);
         await Assert.ThrowsAsync<ConcurrencyConflictException>(() =>
@@ -105,9 +106,9 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         await using var sp = await Services(time);
         var instrumentId = await NewInstrument(sp);
 
-        var id = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, "pia"))).Value;
-        Assert.True((await Step(sp, id, CorporateActionStep.Submit, "pia")).IsSuccess);
-        Assert.True((await Step(sp, id, CorporateActionStep.Approve, "fred")).IsSuccess);
+        var id = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, Pia))).Value;
+        Assert.True((await Step(sp, id, CorporateActionStep.Submit, Pia)).IsSuccess);
+        Assert.True((await Step(sp, id, CorporateActionStep.Approve, Fred)).IsSuccess);
 
         var dto = Assert.Single(await sp.GetRequiredService<ListCorporateActionsQuery>().Worklist(default));
         Assert.Equal(("Approved", "pia", "fred", "SAP SE"), (dto.Status, dto.CreatedBy, dto.DecidedBy, dto.InstrumentName));
@@ -117,10 +118,10 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
     public async Task Approve_by_creator_via_handler_returns_four_eyes_error()
     {
         await using var sp = await Services(new FixedTime(Now));
-        var id = (await Create(sp, new CreateCorporateActionCommand(await NewInstrument(sp), CorporateActionType.Delisting, null, null, null, Due, "frieda"))).Value;
-        await Step(sp, id, CorporateActionStep.Submit, "frieda");
+        var id = (await Create(sp, new CreateCorporateActionCommand(await NewInstrument(sp), CorporateActionType.Delisting, null, null, null, Due, Frieda))).Value;
+        await Step(sp, id, CorporateActionStep.Submit, Frieda);
 
-        Assert.Equal(CorporateActionErrors.FourEyes, (await Step(sp, id, CorporateActionStep.Approve, "frieda")).Error);
+        Assert.Equal(CorporateActionErrors.FourEyes, (await Step(sp, id, CorporateActionStep.Approve, Frieda)).Error);
     }
 
     [Fact]
@@ -128,9 +129,9 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
     {
         await using var sp = await Services(new FixedTime(Now));
 
-        Assert.Equal(CorporateActionErrors.NotFound, (await Step(sp, Guid.NewGuid(), CorporateActionStep.Submit, "pia")).Error);
+        Assert.Equal(CorporateActionErrors.NotFound, (await Step(sp, Guid.NewGuid(), CorporateActionStep.Submit, Pia)).Error);
         Assert.Equal(InstrumentErrors.NotFound, (await Create(sp,
-            new CreateCorporateActionCommand(Guid.NewGuid(), CorporateActionType.Delisting, null, null, null, Due, "pia"))).Error);
+            new CreateCorporateActionCommand(Guid.NewGuid(), CorporateActionType.Delisting, null, null, null, Due, Pia))).Error);
     }
 
     [Fact]
@@ -138,7 +139,7 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
     {
         await using var sp = await Services(new FixedTime(Now));
         var instrumentId = await NewInstrument(sp);
-        var command = new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, "pia");
+        var command = new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, Pia);
 
         await Create(sp, command);
 
@@ -150,10 +151,10 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
     {
         await using var sp = await Services(new FixedTime(Now));
         var instrumentId = await NewInstrument(sp);
-        var draft = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Delisting, null, null, null, Due, "pia"))).Value;
-        var approved = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, "pia"))).Value;
-        await Step(sp, approved, CorporateActionStep.Submit, "pia");
-        await Step(sp, approved, CorporateActionStep.Approve, "fred");
+        var draft = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Delisting, null, null, null, Due, Pia))).Value;
+        var approved = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, Pia))).Value;
+        await Step(sp, approved, CorporateActionStep.Submit, Pia);
+        await Step(sp, approved, CorporateActionStep.Approve, Fred);
 
         var visible = await sp.GetRequiredService<ListCorporateActionsQuery>().PublicForInstrument(instrumentId, default);
 
@@ -172,7 +173,7 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
                 .Handle(new CreateInstrumentCommand("DE0007236101", null, "Siemens AG", InstrumentType.Share, "EUR"), default);
 
         Assert.Equal(InstrumentErrors.DuplicateIsin, (await Create(sp, new CreateCorporateActionCommand(
-            sap, CorporateActionType.IsinChange, null, null, "DE0007236101", Due, "pia"))).Error);
+            sap, CorporateActionType.IsinChange, null, null, "DE0007236101", Due, Pia))).Error);
     }
 
     [Fact]
@@ -181,7 +182,7 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         await using var sp = await Services(new FixedTime(Now));
 
         var result = await Create(sp, new CreateCorporateActionCommand(
-            await NewInstrument(sp), (CorporateActionType)99, null, null, null, Due, "pia"));
+            await NewInstrument(sp), (CorporateActionType)99, null, null, null, Due, Pia));
 
         Assert.Equal(CorporateActionErrors.InvalidType, result.Error);
     }
@@ -192,7 +193,7 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         return await scope.ServiceProvider.GetRequiredService<CreateCorporateActionHandler>().Handle(command, default);
     }
 
-    private static async Task<Result> Step(IServiceProvider sp, Guid id, CorporateActionStep step, string user)
+    private static async Task<Result> Step(IServiceProvider sp, Guid id, CorporateActionStep step, Actor user)
     {
         await using var scope = sp.CreateAsyncScope();
         return await scope.ServiceProvider.GetRequiredService<ChangeCorporateActionHandler>()
@@ -223,7 +224,7 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
         instrumentId ??= await NewInstrument(sp);
         await using var scope = sp.CreateAsyncScope();
         var instrument = (await scope.ServiceProvider.GetRequiredService<IInstrumentRepository>().GetAsync(instrumentId.Value, default))!;
-        var action = CorporateAction.CreateSplit(instrument, SplitRatio.Create(1, 4).Value, effectiveAt, "pia").Value;
+        var action = CorporateAction.CreateSplit(instrument, SplitRatio.Create(1, 4).Value, effectiveAt, Pia).Value;
         scope.ServiceProvider.GetRequiredService<ICorporateActionRepository>().Add(action);
         await scope.ServiceProvider.GetRequiredService<IUnitOfWork>().SaveChangesAsync(default);
         return action.Id;
