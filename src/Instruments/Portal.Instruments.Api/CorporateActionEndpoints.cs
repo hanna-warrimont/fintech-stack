@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using Portal.Instruments.Application.CorporateActions;
+using Portal.Instruments.Domain.CorporateActions;
 
 namespace Portal.Instruments.Api;
 
@@ -15,7 +16,7 @@ public static class CorporateActionEndpoints
         actions.MapPost("/", async (CreateRequest r, ClaimsPrincipal user, CreateCorporateActionHandler handler, CancellationToken ct) =>
         {
             var result = await handler.Handle(
-                new CreateCorporateActionCommand(r.InstrumentId, r.Type, r.SplitOld, r.SplitNew, r.NewIsin, r.EffectiveAt, UserName(user)), ct);
+                new CreateCorporateActionCommand(r.InstrumentId, r.Type, r.SplitOld, r.SplitNew, r.NewIsin, r.EffectiveAt, Actor(user)), ct);
             return result.IsSuccess ? Results.Created($"/corporate-actions/{result.Value}", new { id = result.Value }) : result.Error.ToProblem();
         }).RequireAuthorization(Policies.Pfleger);
 
@@ -38,13 +39,17 @@ public static class CorporateActionEndpoints
     private static void MapStep(RouteGroupBuilder group, string name, CorporateActionStep step, string policy) =>
         group.MapPost($"/{{id:guid}}/{name}", async (Guid id, ClaimsPrincipal user, ChangeCorporateActionHandler handler, CancellationToken ct) =>
         {
-            var result = await handler.Handle(new ChangeCorporateActionCommand(id, step, UserName(user)), ct);
+            var result = await handler.Handle(new ChangeCorporateActionCommand(id, step, Actor(user)), ct);
             return result.IsSuccess ? Results.NoContent() : result.Error.ToProblem();
         }).RequireAuthorization(policy);
 
-    /// <summary>Vier-Augen vergleicht diesen Namen: Keycloak-Claim <c>preferred_username</c> (über NameClaimType).</summary>
-    private static string UserName(ClaimsPrincipal user) =>
-        user.Identity?.Name ?? throw new InvalidOperationException("Angemeldeter Nutzer ohne Namen.");
+    /// <summary>
+    /// Vier-Augen vergleicht die Kennung (Claim <c>sub</c>), der Name (<c>preferred_username</c> über NameClaimType) ist
+    /// nur zur Anzeige. Fehlt einer der Claims, ist das Token falsch konfiguriert – dann lieber 500 als eine Regel ohne Grundlage.
+    /// </summary>
+    private static Actor Actor(ClaimsPrincipal user) => new(
+        user.FindFirstValue("sub") ?? throw new InvalidOperationException("Angemeldeter Nutzer ohne sub-Claim."),
+        user.Identity?.Name ?? throw new InvalidOperationException("Angemeldeter Nutzer ohne Namen."));
 }
 
 public static class Policies

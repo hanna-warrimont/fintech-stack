@@ -61,7 +61,7 @@ public static class Extensions
             })
             .WithTracing(tracing =>
             {
-                tracing.AddSource(builder.Environment.ApplicationName, "Portal.Messaging", "Portal.Instruments", "Npgsql")
+                tracing.AddSource(builder.Environment.ApplicationName, "Portal.Messaging", "Portal.Instruments")
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>
@@ -108,19 +108,20 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
-        // Adding health checks endpoints to applications in non-development environments has security implications.
-        // See https://aka.ms/aspire/healthchecks for details before enabling these endpoints in non-development environments.
-        if (app.Environment.IsDevelopment())
-        {
-            // All health checks must pass for app to be considered ready to accept traffic after starting
-            app.MapHealthChecks(HealthEndpointPath);
+        // In allen Umgebungen: Die Probes der Container Apps fragen diese Pfade ab. Erreichbar sind sie nur intern
+        // (die .NET-Dienste haben internen Ingress, der Nuxt-Proxy reicht nur /api durch), und die Antwort ist nur
+        // "Healthy"/"Unhealthy" ohne Details. Siehe https://aka.ms/aspire/healthchecks
 
-            // Only health checks tagged with the "live" tag must pass for app to be considered alive
-            app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
-            {
-                Predicate = r => r.Tags.Contains("live")
-            });
-        }
+        // Readiness: alle Checks – auch den Datenbank-Check, den die Aspire-Integration (AddNpgsqlDataSource) mitbringt.
+        // Kafka zählt bewusst nicht: Die HTTP-Seite liest nur aus der DB, Schreibendes geht über die Outbox – genau damit
+        // ein Kafka-Ausfall den Dienst nicht lahmlegt.
+        app.MapHealthChecks(HealthEndpointPath);
+
+        // Liveness: nur "live" – eine kurz fehlende Datenbank ist kein Grund, den Container neu zu starten.
+        app.MapHealthChecks(AlivenessEndpointPath, new HealthCheckOptions
+        {
+            Predicate = r => r.Tags.Contains("live")
+        });
 
         return app;
     }

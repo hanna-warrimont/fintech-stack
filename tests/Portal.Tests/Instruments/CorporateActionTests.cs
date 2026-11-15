@@ -1,5 +1,6 @@
 using Portal.Instruments.Domain.CorporateActions;
 using Portal.Instruments.Domain.Instruments;
+using static Portal.Tests.Instruments.Users;
 
 namespace Portal.Tests.Instruments;
 
@@ -13,13 +14,13 @@ public sealed class CorporateActionTests
         Instrument.Create(Isin.Create("DE0007164600").Value, null, "SAP SE", InstrumentType.Share, Currency.Create("EUR").Value).Value;
 
     private static CorporateAction Split(Instrument? instrument = null, DateTimeOffset? effectiveAt = null) =>
-        CorporateAction.CreateSplit(instrument ?? Sap(), SplitRatio.Create(1, 4).Value, effectiveAt ?? Due, "pia").Value;
+        CorporateAction.CreateSplit(instrument ?? Sap(), SplitRatio.Create(1, 4).Value, effectiveAt ?? Due, Pia).Value;
 
     private static CorporateAction Approved(Instrument? instrument = null, CorporateAction? action = null)
     {
         action ??= Split(instrument);
         action.Submit();
-        action.Approve("fred", Now, LeadTime);
+        action.Approve(Fred, Now, LeadTime);
         return action;
     }
 
@@ -41,6 +42,7 @@ public sealed class CorporateActionTests
 
         Assert.Equal(CorporateActionStatus.Draft, action.Status);
         Assert.Equal("pia", action.CreatedBy);
+        Assert.Equal(Pia.Id, action.CreatedById);
         Assert.Equal(1, action.Revision);
         Assert.Empty(action.DomainEvents);
     }
@@ -52,7 +54,7 @@ public sealed class CorporateActionTests
         instrument.Delist();
 
         Assert.Equal(CorporateActionErrors.InstrumentDelisted,
-            CorporateAction.CreateDelisting(instrument, Due, "pia").Error);
+            CorporateAction.CreateDelisting(instrument, Due, Pia).Error);
     }
 
     [Fact]
@@ -61,7 +63,7 @@ public sealed class CorporateActionTests
         var instrument = Sap();
 
         Assert.Equal(CorporateActionErrors.SameIsin,
-            CorporateAction.CreateIsinChange(instrument, instrument.Isin, Due, "pia").Error);
+            CorporateAction.CreateIsinChange(instrument, instrument.Isin, Due, Pia).Error);
     }
 
     [Fact]
@@ -70,7 +72,7 @@ public sealed class CorporateActionTests
         var action = Split();
 
         Assert.True(action.Submit().IsSuccess);
-        Assert.True(action.Approve("fred", Now, LeadTime).IsSuccess);
+        Assert.True(action.Approve(Fred, Now, LeadTime).IsSuccess);
 
         Assert.Equal(CorporateActionStatus.Approved, action.Status);
         Assert.Equal("fred", action.DecidedBy);
@@ -84,9 +86,29 @@ public sealed class CorporateActionTests
         var action = Split();
         action.Submit();
 
-        Assert.Equal(CorporateActionErrors.FourEyes, action.Approve("pia", Now, LeadTime).Error);
+        Assert.Equal(CorporateActionErrors.FourEyes, action.Approve(Pia, Now, LeadTime).Error);
         Assert.Equal(CorporateActionStatus.Submitted, action.Status);
     }
+
+    [Fact]
+    public void Four_eyes_compares_the_id_not_the_name()
+    {
+        var renamed = new Actor(Pia.Id, "pia.neu");       // dieselbe Person, in Keycloak umbenannt
+        var namesake = new Actor("andere-person", "pia"); // Nutzername nach dem Löschen neu vergeben
+
+        var action = Split();
+        action.Submit();
+
+        Assert.Equal(CorporateActionErrors.FourEyes, action.Approve(renamed, Now, LeadTime).Error);
+        Assert.True(action.Approve(namesake, Now, LeadTime).IsSuccess);
+    }
+
+    [Theory]
+    [InlineData("", "pia")]
+    [InlineData(" ", "pia")]
+    [InlineData("id", "")]
+    public void Actor_needs_id_and_name(string id, string name) =>
+        Assert.Throws<ArgumentException>(() => new Actor(id, name));
 
     [Fact]
     public void Approve_with_effective_at_inside_lead_time_is_rejected()
@@ -94,12 +116,12 @@ public sealed class CorporateActionTests
         var action = Split(effectiveAt: Now.AddSeconds(30));
         action.Submit();
 
-        Assert.Equal(CorporateActionErrors.LeadTimeTooShort, action.Approve("fred", Now, LeadTime).Error);
+        Assert.Equal(CorporateActionErrors.LeadTimeTooShort, action.Approve(Fred, Now, LeadTime).Error);
     }
 
     [Fact]
     public void Approve_from_draft_is_invalid_transition() =>
-        Assert.Equal(CorporateActionErrors.InvalidTransition, Split().Approve("fred", Now, LeadTime).Error);
+        Assert.Equal(CorporateActionErrors.InvalidTransition, Split().Approve(Fred, Now, LeadTime).Error);
 
     [Fact]
     public void Withdraw_returns_to_draft()
@@ -129,7 +151,7 @@ public sealed class CorporateActionTests
         var action = Split();
         action.Submit();
 
-        Assert.True(action.Reject("fred").IsSuccess);
+        Assert.True(action.Reject(Fred).IsSuccess);
         Assert.Equal(CorporateActionStatus.Rejected, action.Status);
         Assert.Equal("fred", action.DecidedBy);
         Assert.Equal([new CorporateActionRejected(action.Id, action.InstrumentId)], action.DomainEvents);
@@ -140,14 +162,14 @@ public sealed class CorporateActionTests
     {
         var action = Approved();
 
-        Assert.True(action.Cancel("fred", Now.AddMinutes(1)).IsSuccess);
+        Assert.True(action.Cancel(Fred, Now.AddMinutes(1)).IsSuccess);
         Assert.Equal(CorporateActionStatus.Cancelled, action.Status);
         Assert.Contains(new CorporateActionCancelled(action.Id, action.InstrumentId), action.DomainEvents);
     }
 
     [Fact]
     public void Cancel_after_effective_at_is_rejected() =>
-        Assert.Equal(CorporateActionErrors.AlreadyEffectiveDue, Approved().Cancel("fred", Due).Error);
+        Assert.Equal(CorporateActionErrors.AlreadyEffectiveDue, Approved().Cancel(Fred, Due).Error);
 
     [Fact]
     public void Become_effective_before_due_is_rejected()
@@ -163,7 +185,7 @@ public sealed class CorporateActionTests
     {
         var instrument = Sap();
         var newIsin = Isin.Create("US0378331005").Value;
-        var action = Approved(instrument, CorporateAction.CreateIsinChange(instrument, newIsin, Due, "pia").Value);
+        var action = Approved(instrument, CorporateAction.CreateIsinChange(instrument, newIsin, Due, Pia).Value);
 
         Assert.True(action.BecomeEffective(instrument, Due).IsSuccess);
 
@@ -177,7 +199,7 @@ public sealed class CorporateActionTests
     public void Become_effective_applies_delisting()
     {
         var instrument = Sap();
-        var action = Approved(instrument, CorporateAction.CreateDelisting(instrument, Due, "pia").Value);
+        var action = Approved(instrument, CorporateAction.CreateDelisting(instrument, Due, Pia).Value);
 
         action.BecomeEffective(instrument, Due);
 

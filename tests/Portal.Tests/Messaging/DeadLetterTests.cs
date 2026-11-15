@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
@@ -48,7 +49,7 @@ public sealed class DeadLetterTests(KafkaFixture kafka)
         Assert.Contains("kaputt", Header(dlt, "dlt-error"));
         Assert.Equal(topic, Header(dlt, "dlt-original-topic"));
         Assert.Equal("0", Header(dlt, "dlt-original-partition"));
-        Assert.Equal(result.Offset.Value.ToString(), Header(dlt, "dlt-original-offset"));
+        Assert.Equal(result.Offset.Value.ToString(CultureInfo.InvariantCulture), Header(dlt, "dlt-original-offset"));
         Assert.Equal("3", Header(dlt, "dlt-attempts"));
         Assert.NotNull(Header(dlt, "traceparent"));
     }

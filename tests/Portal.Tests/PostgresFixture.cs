@@ -1,3 +1,5 @@
+using System.Text;
+using DotNet.Testcontainers.Containers;
 using Npgsql;
 using Testcontainers.PostgreSql;
 
@@ -19,6 +21,18 @@ public sealed class PostgresFixture : IAsyncLifetime
         }
 
         return new NpgsqlConnectionStringBuilder(_postgres.GetConnectionString()) { Database = name }.ConnectionString;
+    }
+
+    /// <summary>Verbindung als beliebige Rolle – für Tests, die Rechte prüfen (der Standard ist der Superuser).</summary>
+    public string ConnectionString(string user, string password, string database) =>
+        new NpgsqlConnectionStringBuilder(_postgres.GetConnectionString()) { Username = user, Password = password, Database = database }
+            .ConnectionString;
+
+    /// <summary>Führt ein psql-Skript im Container aus (lokaler Socket, ohne Passwort). <paramref name="env"/>: <c>NAME=wert</c>.</summary>
+    public async Task<ExecResult> PsqlAsync(string script, string user, params string[] env)
+    {
+        await _postgres.CopyAsync(Encoding.UTF8.GetBytes(script), "/tmp/script.sql");
+        return await _postgres.ExecAsync(["env", .. env, "psql", "-U", user, "-d", "postgres", "-f", "/tmp/script.sql"]);
     }
 
     public Task InitializeAsync() => _postgres.StartAsync();

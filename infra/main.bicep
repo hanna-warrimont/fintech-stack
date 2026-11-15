@@ -11,6 +11,15 @@ param imageTag string = 'latest'
 
 @secure()
 param postgresAdminPassword string
+// Eine Login-Rolle pro Dienst (infra/postgres/roles.sql): Kein Dienst kommt an die Datenbank eines anderen.
+@secure()
+param instrumentDbPassword string
+@secure()
+param searchDbPassword string
+@secure()
+param historyDbPassword string
+@secure()
+param keycloakDbPassword string
 @secure()
 param bffClientSecret string
 @secure()
@@ -46,6 +55,22 @@ module eventHubs 'modules/eventhubs.bicep' = {
 module postgres 'modules/postgres.bicep' = {
   name: 'postgres'
   params: { location: location, prefix: prefix, suffix: suffix, adminPassword: postgresAdminPassword }
+}
+
+// Erster Durchlauf: Der Job entsteht mit der Infrastruktur, deploy.sh startet ihn vor den Apps.
+module dbRoles 'modules/dbroles.bicep' = {
+  name: 'dbroles'
+  params: {
+    location: location
+    environmentId: monitoring.outputs.environmentId
+    postgresFqdn: postgres.outputs.fqdn
+    adminLogin: postgres.outputs.adminLogin
+    adminPassword: postgresAdminPassword
+    instrumentDbPassword: instrumentDbPassword
+    searchDbPassword: searchDbPassword
+    historyDbPassword: historyDbPassword
+    keycloakDbPassword: keycloakDbPassword
+  }
 }
 
 module budget 'modules/budget.bicep' = {
@@ -99,8 +124,8 @@ var kafkaEnv = [
 ]
 var kafkaSecret = { 'kafka-connection': ehRule.listKeys().primaryConnectionString }
 
-func pg(fqdn string, db string, password string) string =>
-  'Host=${fqdn};Database=${db};Username=portaladmin;Password=${password};Ssl Mode=Require'
+func pg(fqdn string, db string, user string, password string) string =>
+  'Host=${fqdn};Database=${db};Username=${user};Password=${password};Ssl Mode=Require'
 
 module instrument 'modules/app.bicep' = if (deployApps) {
   name: 'app-instrument'
@@ -114,11 +139,12 @@ module instrument 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/instrument:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: concat(kafkaEnv, [
       { name: 'ConnectionStrings__instrumentdb', secretRef: 'db' }
       { name: 'services__keycloak__http__0', value: keycloakUrl }
     ])
-    secrets: union(kafkaSecret, { db: pg(postgres.outputs.fqdn, 'instrumentdb', postgresAdminPassword) })
+    secrets: union(kafkaSecret, { db: pg(postgres.outputs.fqdn, 'instrumentdb', 'instrument', instrumentDbPassword) })
   }
 }
 
@@ -134,8 +160,9 @@ module search 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/search:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: concat(kafkaEnv, [ { name: 'ConnectionStrings__searchdb', secretRef: 'db' } ])
-    secrets: union(kafkaSecret, { db: pg(postgres.outputs.fqdn, 'searchdb', postgresAdminPassword) })
+    secrets: union(kafkaSecret, { db: pg(postgres.outputs.fqdn, 'searchdb', 'search', searchDbPassword) })
   }
 }
 
@@ -151,8 +178,9 @@ module history 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/history:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: concat(kafkaEnv, [ { name: 'ConnectionStrings__historydb', secretRef: 'db' } ])
-    secrets: union(kafkaSecret, { db: pg(postgres.outputs.fqdn, 'historydb', postgresAdminPassword) })
+    secrets: union(kafkaSecret, { db: pg(postgres.outputs.fqdn, 'historydb', 'history', historyDbPassword) })
   }
 }
 
@@ -168,6 +196,7 @@ module quote 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/quote:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: kafkaEnv
     secrets: kafkaSecret
   }
@@ -185,6 +214,7 @@ module simulator 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/simulator:${imageTag}'
     external: false
     targetPort: 8080
+    healthChecks: true
     env: kafkaEnv
     secrets: kafkaSecret
   }
@@ -202,6 +232,7 @@ module bff 'modules/app.bicep' = if (deployApps) {
     image: '${registryServer}/portal/bff:${imageTag}'
     external: false // nur über den Nuxt-Proxy erreichbar
     targetPort: 8080
+    healthChecks: true
     env: [
       { name: 'services__instrument__http__0', value: 'http://instrument' }
       { name: 'services__search__http__0', value: 'http://search' }
@@ -247,7 +278,7 @@ module keycloak 'modules/app.bicep' = if (deployApps) {
     memory: '1Gi'
     env: [
       { name: 'KC_DB_URL', value: 'jdbc:postgresql://${postgres.outputs.fqdn}:5432/keycloak?sslmode=require' }
-      { name: 'KC_DB_USERNAME', value: 'portaladmin' }
+      { name: 'KC_DB_USERNAME', value: 'keycloak' }
       { name: 'KC_DB_PASSWORD', secretRef: 'db-password' }
       { name: 'KC_HOSTNAME', value: keycloakUrl }
       { name: 'KC_PROXY_HEADERS', value: 'xforwarded' } // TLS endet am Ingress
@@ -262,7 +293,7 @@ module keycloak 'modules/app.bicep' = if (deployApps) {
       { name: 'PORTAL_FRIEDA_PASSWORD', secretRef: 'frieda-password' }
     ]
     secrets: {
-      'db-password': postgresAdminPassword
+      'db-password': keycloakDbPassword
       'admin-password': keycloakAdminPassword
       'bff-secret': bffClientSecret
       'pia-password': piaPassword

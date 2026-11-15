@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using Confluent.Kafka.Admin;
@@ -11,8 +12,13 @@ using Portal.Search;
 namespace Portal.Tests.Search;
 
 [Collection("infra")]
-public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres)
+public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres) : IDisposable
 {
+    private readonly IProducer<string, string> _producer =
+        new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = kafka.BootstrapServers }).Build();
+
+    public void Dispose() => _producer.Dispose();
+
     private static readonly Guid Sap = Guid.NewGuid(), Siemens = Guid.NewGuid(), Allianz = Guid.NewGuid(), Msci = Guid.NewGuid();
 
     [Fact]
@@ -125,7 +131,7 @@ public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Consumer_skips_invalid_messages()
+    public async Task Invalid_messages_go_to_dlt_and_tombstones_are_skipped()
     {
         var (db, projection) = await Setup();
         var topic = await Topic();
@@ -149,6 +155,12 @@ public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres)
             await using var connection = await db.OpenConnectionAsync();
             Assert.Equal(Siemens, await connection.ExecuteScalarAsync<Guid>("SELECT id FROM instruments"));
             Assert.False(consumer.ExecuteTask!.IsFaulted);
+
+            var dlt = ReadDlt(topic, expected: 2); // „kein json“ und der fremde Typ – der Tombstone nicht
+            Assert.Equal(2, dlt.Count);
+            Assert.Equal("kein json", dlt[0].Value);
+            Assert.Contains("\"Other\"", dlt[1].Value);
+            Assert.All(dlt, m => Assert.Equal("1", Header(m, "dlt-attempts")));
         }
         finally
         {
@@ -157,7 +169,7 @@ public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres)
     }
 
     [Fact]
-    public async Task Consumer_skips_typed_but_invalid_payload()
+    public async Task Typed_but_invalid_payload_goes_to_dlt_and_does_not_block_partition()
     {
         var (db, projection) = await Setup();
         var topic = await Topic();
@@ -173,7 +185,8 @@ public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres)
         await consumer.StartAsync(CancellationToken.None);
         try
         {
-            await Eventually(async () => await Count(db, "instruments") == 1); // blockierte die Partition vorher dauerhaft
+            await Eventually(async () => await Count(db, "instruments") == 1); // blockierte die Partition früher dauerhaft
+            Assert.Single(ReadDlt(topic, expected: 1));
         }
         finally
         {
@@ -256,6 +269,7 @@ public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres)
     {
         var topic = $"instruments-test-{Guid.NewGuid():N}";
         await Topics.EnsureTopicAsync(kafka.BootstrapServers, topic, config: Topics.Compacted);
+        await Topics.EnsureTopicAsync(kafka.BootstrapServers, DeadLetter.TopicFor(topic, SnapshotConsumer.Group));
         return topic;
     }
 
@@ -278,7 +292,25 @@ public sealed class SearchTests(KafkaFixture kafka, PostgresFixture postgres)
     };
 
     private SnapshotConsumer Consumer(InstrumentProjection projection, string topic, string group) =>
-        new(projection, Config(group), NullLogger<SnapshotConsumer>.Instance, topic);
+        new(projection, new DeadLetter(_producer, SnapshotConsumer.Group, NullLogger.Instance), Config(group),
+            NullLogger<SnapshotConsumer>.Instance, topic);
+
+    private List<Message<string, string>> ReadDlt(string topic, int expected)
+    {
+        using var consumer = new ConsumerBuilder<string, string>(Config($"dlt-{Guid.NewGuid():N}")).Build();
+        consumer.Subscribe(DeadLetter.TopicFor(topic, SnapshotConsumer.Group));
+        var messages = new List<Message<string, string>>();
+        var deadline = DateTime.UtcNow.AddSeconds(30);
+        while (messages.Count < expected && DateTime.UtcNow < deadline)
+            if (consumer.Consume(TimeSpan.FromMilliseconds(200)) is { } r) messages.Add(r.Message);
+        // Kurz weiterlesen: Es darf nicht MEHR im DLT liegen als erwartet (z. B. der Tombstone).
+        if (consumer.Consume(TimeSpan.FromSeconds(1)) is { } extra) messages.Add(extra.Message);
+        consumer.Close();
+        return messages;
+    }
+
+    private static string? Header(Message<string, string> m, string key) =>
+        m.Headers.TryGetLastBytes(key, out var bytes) ? Encoding.UTF8.GetString(bytes) : null;
 
     private async Task<long> Committed(string group, TopicPartition partition)
     {

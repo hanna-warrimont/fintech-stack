@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging;
@@ -58,9 +59,9 @@ public sealed class DeadLetter(IProducer<string, string> producer, string group,
         foreach (var h in result.Message.Headers ?? []) headers.Add(h.Key, h.GetValueBytes());
         headers.Add("dlt-error", Encoding.UTF8.GetBytes($"{error.GetType().Name}: {error.Message}"));
         headers.Add("dlt-original-topic", Encoding.UTF8.GetBytes(result.Topic));
-        headers.Add("dlt-original-partition", Encoding.UTF8.GetBytes(result.Partition.Value.ToString()));
-        headers.Add("dlt-original-offset", Encoding.UTF8.GetBytes(result.Offset.Value.ToString()));
-        headers.Add("dlt-attempts", Encoding.UTF8.GetBytes(attempts.ToString()));
+        headers.Add("dlt-original-partition", Encoding.UTF8.GetBytes(result.Partition.Value.ToString(CultureInfo.InvariantCulture)));
+        headers.Add("dlt-original-offset", Encoding.UTF8.GetBytes(result.Offset.Value.ToString(CultureInfo.InvariantCulture)));
+        headers.Add("dlt-attempts", Encoding.UTF8.GetBytes(attempts.ToString(CultureInfo.InvariantCulture)));
 
         var dlt = TopicFor(result.Topic, group);
         // Erst nach der Bestätigung darf der Aufrufer committen – sonst wäre die Nachricht weg.

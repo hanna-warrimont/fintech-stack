@@ -1,12 +1,12 @@
+using System.Data.Common;
 using Dapper;
-using Npgsql;
 
 namespace Portal.Instruments.Application.Instruments;
 
 public sealed record InstrumentResponse(Guid Id, string Isin, string? Wkn, string Name, string Type, string Currency, string Status);
 
 /// <summary>Lesende Seite (CQRS): direkt per SQL, am Aggregat und EF vorbei.</summary>
-public sealed class GetInstrumentQuery(NpgsqlDataSource db)
+public sealed class GetInstrumentQuery(DbDataSource db)
 {
     public async Task<InstrumentResponse?> Handle(Guid id, CancellationToken ct)
     {

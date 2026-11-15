@@ -8,8 +8,9 @@ builder.AddServiceDefaults();
 
 const string group = "history";
 var kafka = new KafkaSettings(builder.Configuration);
-var db = NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("historydb")!);
-builder.Services.AddSingleton(db);
+// Aspire-Integration: Datenquelle aus ConnectionStrings:historydb (fehlt sie, scheitert der Start sofort), dazu Health Check
+// für Readiness sowie Traces und Metriken von Npgsql. Registriert NpgsqlDataSource und DbDataSource.
+builder.AddNpgsqlDataSource("historydb");
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<CandleStore>();
 builder.Services.AddSingleton<CandleQuery>();
@@ -29,9 +30,12 @@ builder.Services.AddHostedService(sp => new CorporateActionConsumer(
     kafka.Consumer(CorporateActionConsumer.Group, AutoOffsetReset.Earliest), // neue Instanz/DB: alle Splits von Anfang an
     sp.GetRequiredService<ILogger<CorporateActionConsumer>>()));
 
+// Inbox 30 Tage: Wiederholte Maßnahmen danach fängt der Primärschlüssel von adjustments ab.
+builder.Services.AddHostedService(sp => ActivatorUtilities.CreateInstance<RetentionJob>(sp, RetentionJob.Inbox, TimeSpan.FromDays(30)));
+
 var app = builder.Build();
 
-await HistorySchema.EnsureAsync(db, CancellationToken.None);
+await HistorySchema.EnsureAsync(app.Services.GetRequiredService<NpgsqlDataSource>(), CancellationToken.None);
 await kafka.EnsureTopicAsync(DeadLetter.TopicFor(Topics.Ticks, group));
 await kafka.EnsureTopicAsync(DeadLetter.TopicFor(Topics.CorporateActions, CorporateActionConsumer.Group));
 

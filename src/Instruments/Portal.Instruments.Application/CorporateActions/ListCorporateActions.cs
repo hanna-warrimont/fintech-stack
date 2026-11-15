@@ -1,5 +1,5 @@
+using System.Data.Common;
 using Dapper;
-using Npgsql;
 
 namespace Portal.Instruments.Application.CorporateActions;
 
@@ -9,7 +9,7 @@ public sealed record CorporateActionDto(
     DateTime EffectiveAt, string Status, string CreatedBy, string? DecidedBy);
 
 /// <summary>Lesende Seite (CQRS): Arbeitsliste für Pfleger/Freigeber und öffentliche Fakten je Instrument.</summary>
-public sealed class ListCorporateActionsQuery(NpgsqlDataSource db)
+public sealed class ListCorporateActionsQuery(DbDataSource db)
 {
     private const string Select = """
         SELECT a.id, a.instrument_id AS instrumentid, i.name AS instrumentname, i.isin, a.type, a.split_old AS splitold,

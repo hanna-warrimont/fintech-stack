@@ -7,7 +7,7 @@ using Portal.Instruments.Domain.Instruments;
 namespace Portal.Instruments.Application.CorporateActions;
 
 public sealed record CreateCorporateActionCommand(
-    Guid InstrumentId, CorporateActionType Type, int? SplitOld, int? SplitNew, string? NewIsin, DateTimeOffset EffectiveAt, string User);
+    Guid InstrumentId, CorporateActionType Type, int? SplitOld, int? SplitNew, string? NewIsin, DateTimeOffset EffectiveAt, Actor User);
 
 public sealed class CreateCorporateActionHandler(
     IInstrumentRepository instruments, ICorporateActionRepository actions, IUnitOfWork unitOfWork)

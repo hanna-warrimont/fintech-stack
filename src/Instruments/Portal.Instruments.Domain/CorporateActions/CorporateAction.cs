@@ -11,7 +11,7 @@ namespace Portal.Instruments.Domain.CorporateActions;
 ///   └──Discard         └──Withdraw──▶ Draft
 /// Approved ──Cancel (vor dem Stichtag)──▶ Cancelled
 /// </code>
-/// Regeln: Vier-Augen (wer erfasst, gibt nicht frei), Stichtag mit Mindestvorlauf bei der Freigabe,
+/// Regeln: Vier-Augen (wer erfasst, gibt nicht frei – verglichen über <see cref="Actor.Id"/>, nicht den Namen), Stichtag mit Mindestvorlauf bei der Freigabe,
 /// keine Maßnahme für delistete Instrumente. Jeder Übergang erhöht <see cref="Revision"/> (Optimistic Concurrency).
 /// </summary>
 public sealed class CorporateAction : Entity
@@ -28,23 +28,26 @@ public sealed class CorporateAction : Entity
     public Isin? NewIsin { get; private set; }
     public DateTimeOffset EffectiveAt { get; private set; }
     public CorporateActionStatus Status { get; private set; }
+    /// <summary>Kennung der Person, die erfasst hat (<see cref="Actor.Id"/>) – Grundlage der Vier-Augen-Regel.</summary>
+    public string CreatedById { get; private set; } = null!;
+    /// <summary>Anzeigename zum Erfassen; <see cref="DecidedBy"/> ebenso.</summary>
     public string CreatedBy { get; private set; } = null!;
     public string? DecidedBy { get; private set; }
     public int Revision { get; private set; }
 
-    public static Result<CorporateAction> CreateSplit(Instrument instrument, SplitRatio ratio, DateTimeOffset effectiveAt, string user) =>
+    public static Result<CorporateAction> CreateSplit(Instrument instrument, SplitRatio ratio, DateTimeOffset effectiveAt, Actor user) =>
         Create(instrument, CorporateActionType.Split, ratio, null, effectiveAt, user);
 
-    public static Result<CorporateAction> CreateIsinChange(Instrument instrument, Isin newIsin, DateTimeOffset effectiveAt, string user) =>
+    public static Result<CorporateAction> CreateIsinChange(Instrument instrument, Isin newIsin, DateTimeOffset effectiveAt, Actor user) =>
         newIsin == instrument.Isin
             ? CorporateActionErrors.SameIsin
             : Create(instrument, CorporateActionType.IsinChange, null, newIsin, effectiveAt, user);
 
-    public static Result<CorporateAction> CreateDelisting(Instrument instrument, DateTimeOffset effectiveAt, string user) =>
+    public static Result<CorporateAction> CreateDelisting(Instrument instrument, DateTimeOffset effectiveAt, Actor user) =>
         Create(instrument, CorporateActionType.Delisting, null, null, effectiveAt, user);
 
     private static Result<CorporateAction> Create(
-        Instrument instrument, CorporateActionType type, SplitRatio? ratio, Isin? newIsin, DateTimeOffset effectiveAt, string user)
+        Instrument instrument, CorporateActionType type, SplitRatio? ratio, Isin? newIsin, DateTimeOffset effectiveAt, Actor user)
     {
         if (instrument.Status == InstrumentStatus.Delisted) return CorporateActionErrors.InstrumentDelisted;
 
@@ -57,7 +60,8 @@ public sealed class CorporateAction : Entity
             NewIsin = newIsin,
             EffectiveAt = effectiveAt,
             Status = CorporateActionStatus.Draft,
-            CreatedBy = user,
+            CreatedById = user.Id,
+            CreatedBy = user.Name,
             Revision = 1,
         };
     }
@@ -68,25 +72,25 @@ public sealed class CorporateAction : Entity
 
     public Result Discard() => Transition(CorporateActionStatus.Discarded, CorporateActionStatus.Draft);
 
-    public Result Approve(string user, DateTimeOffset now, TimeSpan leadTime)
+    public Result Approve(Actor user, DateTimeOffset now, TimeSpan leadTime)
     {
         if (Status != CorporateActionStatus.Submitted) return Result.Failure(CorporateActionErrors.InvalidTransition);
-        if (user == CreatedBy) return Result.Failure(CorporateActionErrors.FourEyes);
+        if (user.Id == CreatedById) return Result.Failure(CorporateActionErrors.FourEyes);
         if (EffectiveAt < now + leadTime) return Result.Failure(CorporateActionErrors.LeadTimeTooShort);
 
-        return Decide(CorporateActionStatus.Approved, user, new CorporateActionApproved(Id, InstrumentId));
+        return Decide(CorporateActionStatus.Approved, user.Name, new CorporateActionApproved(Id, InstrumentId));
     }
 
-    public Result Reject(string user) => Status == CorporateActionStatus.Submitted
-        ? Decide(CorporateActionStatus.Rejected, user, new CorporateActionRejected(Id, InstrumentId))
+    public Result Reject(Actor user) => Status == CorporateActionStatus.Submitted
+        ? Decide(CorporateActionStatus.Rejected, user.Name, new CorporateActionRejected(Id, InstrumentId))
         : Result.Failure(CorporateActionErrors.InvalidTransition);
 
-    public Result Cancel(string user, DateTimeOffset now)
+    public Result Cancel(Actor user, DateTimeOffset now)
     {
         if (Status != CorporateActionStatus.Approved) return Result.Failure(CorporateActionErrors.InvalidTransition);
         if (now >= EffectiveAt) return Result.Failure(CorporateActionErrors.AlreadyEffectiveDue);
 
-        return Decide(CorporateActionStatus.Cancelled, user, new CorporateActionCancelled(Id, InstrumentId));
+        return Decide(CorporateActionStatus.Cancelled, user.Name, new CorporateActionCancelled(Id, InstrumentId));
     }
 
     /// <summary>Vom Wirksamkeits-Job aufgerufen: wendet die Maßnahme auf das Instrument an (Split ändert am Instrument nichts).</summary>

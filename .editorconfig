@@ -1,0 +1,19 @@
+root = true
+
+# Analyzer-Ausnahmen (AnalysisLevel latest-recommended, siehe Directory.Build.props). Jede mit Grund.
+[*.cs]
+# LoggerMessage-Delegates bringen nur auf heißen Pfaden etwas; hier wird pro Nachricht höchstens bei Fehlern geloggt.
+dotnet_diagnostic.CA1848.severity = none
+dotnet_diagnostic.CA1873.severity = none
+# Repo-Konvention: CancellationToken heißt überall ct, auch in Overrides (z. B. BackgroundService.ExecuteAsync).
+dotnet_diagnostic.CA1725.severity = none
+
+# Result-Pattern wie im Kurs: Der Typ heißt Error (kollidiert nur mit einem VB-Schlüsselwort).
+[src/Instruments/Portal.Instruments.Domain/Abstractions/Error.cs]
+dotnet_diagnostic.CA1716.severity = none
+
+[tests/**.cs]
+# Testnamen als Satz mit Unterstrichen: Write_endpoints_require_expected_role
+dotnet_diagnostic.CA1707.severity = none
+# xUnit-Konvention: Collection-Definitionen heißen …Collection
+dotnet_diagnostic.CA1711.severity = none

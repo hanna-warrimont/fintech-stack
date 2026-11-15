@@ -51,7 +51,7 @@ builder.Services.AddAuthentication(o =>
         o.TokenValidationParameters.RoleClaimType = "roles";
     });
 builder.Services.AddAuthorization();
-builder.Services.AddHttpClient("instrument", c => c.BaseAddress = new Uri("http://instrument"));
+builder.Services.AddHttpClient(BffEndpoints.InstrumentClient, c => c.BaseAddress = new Uri("http://instrument"));
 
 builder.Services.AddReverseProxy()
     .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"))

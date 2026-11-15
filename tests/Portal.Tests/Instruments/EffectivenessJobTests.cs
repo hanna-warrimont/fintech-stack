@@ -11,6 +11,7 @@ using Portal.Instruments.Domain.Instruments;
 using Portal.Instruments.Infrastructure;
 using Portal.Instruments.Infrastructure.CorporateActions;
 using Portal.Messaging.Contracts;
+using static Portal.Tests.Instruments.Users;
 
 namespace Portal.Tests.Instruments;
 
@@ -174,8 +175,8 @@ public sealed class EffectivenessJobTests(PostgresFixture postgres)
         Guid id;
         await using (var scope = sp.CreateAsyncScope())
             id = (await scope.ServiceProvider.GetRequiredService<CreateCorporateActionHandler>().Handle(
-                new CreateCorporateActionCommand(instrumentId, type, 1, 4, newIsin, effectiveAt, "pia"), default)).Value;
-        foreach (var (step, user) in new[] { (CorporateActionStep.Submit, "pia"), (CorporateActionStep.Approve, "fred") })
+                new CreateCorporateActionCommand(instrumentId, type, 1, 4, newIsin, effectiveAt, Pia), default)).Value;
+        foreach (var (step, user) in new[] { (CorporateActionStep.Submit, Pia), (CorporateActionStep.Approve, Fred) })
         {
             await using var scope = sp.CreateAsyncScope();
             Assert.True((await scope.ServiceProvider.GetRequiredService<ChangeCorporateActionHandler>()
