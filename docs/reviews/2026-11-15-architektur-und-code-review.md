@@ -104,7 +104,7 @@ Schwere: **H** = beheben, bevor das Projekt als Referenz dient · **M** = sollte
 
 | # | S | Befund | Empfehlung |
 |---|---|---|---|
-| R1 | M | Die Landkarte verweist mehrfach auf `.superpowers/run-apphost.sh` (Experimente 9 und 17), aber `.superpowers/` steht in `.gitignore`. Die Experimente sind aus dem Repo heraus nicht reproduzierbar. | Das Skript nach `scripts/` verschieben und einchecken, oder die Aufrufe dokumentieren (`HistoryReplicas=2 aspire run`). |
+| R1 | ✅ | **Erledigt:** Das Skript liegt jetzt eingecheckt in `scripts/run-apphost.sh` (baut den AppHost vorher selbst), die Landkarte verweist darauf. Ursprünglicher Befund (M): Die Landkarte verweist mehrfach auf `.superpowers/run-apphost.sh` (Experimente 9 und 17), aber `.superpowers/` steht in `.gitignore`. Die Experimente sind aus dem Repo heraus nicht reproduzierbar. | Das Skript nach `scripts/` verschieben und einchecken, oder die Aufrufe dokumentieren (`HistoryReplicas=2 aspire run`). |
 | R2 | N | Es gibt keine `README.md`, also keinen Einstieg mit „wie starte ich das“, Voraussetzungen (Docker, .NET 10, Node) und Testlauf. | Eine kurze README mit Links auf Spec, Landkarte und `docs/azure.md`. |
 
 ---
