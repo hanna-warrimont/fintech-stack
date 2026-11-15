@@ -18,13 +18,15 @@ export const localTime = (iso: string) =>
   new Date(iso).toLocaleString('de-DE', { dateStyle: 'short', timeStyle: 'short' })
 
 /** Schreibende Aufrufe ans BFF: immer mit CSRF-Header. Liefert die Fehlermeldung des Servers oder null. */
-export async function send(url: string, body?: unknown): Promise<string | null> {
+export async function send(url: string, body?: Record<string, unknown>): Promise<string | null> {
   try {
     await $fetch(url, { method: 'POST', body, headers: { 'X-CSRF': '1' } })
     return null
   }
-  catch (e: any) {
-    if (e?.status === 401) return 'Sitzung abgelaufen – bitte neu anmelden.'
-    return e?.data?.title ?? (e?.status === 403 ? 'Dafür fehlt dir die Rolle.' : 'Aktion fehlgeschlagen.')
+  catch (e) {
+    // Form eines FetchError: HTTP-Status und der Body (ProblemDetails mit title).
+    const { status, data } = e as { status?: number, data?: { title?: string } }
+    if (status === 401) return 'Sitzung abgelaufen – bitte neu anmelden.'
+    return data?.title ?? (status === 403 ? 'Dafür fehlt dir die Rolle.' : 'Aktion fehlgeschlagen.')
   }
 }

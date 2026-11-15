@@ -9,8 +9,8 @@ async function load() {
   try {
     actions.value = await $fetch<CorporateAction[]>('/api/corporate-actions')
   }
-  catch (e: any) {
-    message.value = e?.status === 401 ? 'Sitzung abgelaufen – bitte neu anmelden.' : 'Arbeitsliste nicht verfügbar.'
+  catch (e) {
+    message.value = (e as { status?: number }).status === 401 ? 'Sitzung abgelaufen – bitte neu anmelden.' : 'Arbeitsliste nicht verfügbar.'
   }
 }
 
@@ -63,75 +63,77 @@ const steps: Record<string, { name: string, label: string, role: string }[]> = {
 </script>
 
 <template>
-  <h1>Kapitalmaßnahmen</h1>
+  <div>
+    <h1>Kapitalmaßnahmen</h1>
 
-  <p v-if="user && !user.isAuthenticated">
-    Bitte <a href="/api/bff/login?returnUrl=/kapitalmassnahmen">anmelden</a>.
-  </p>
+    <p v-if="user && !user.isAuthenticated">
+      Bitte <a href="/api/bff/login?returnUrl=/kapitalmassnahmen">anmelden</a>.
+    </p>
 
-  <template v-else-if="user">
-    <p v-if="message" role="alert" class="alert">{{ message }}</p>
+    <template v-else-if="user">
+      <p v-if="message" role="alert" class="alert">{{ message }}</p>
 
-    <form v-if="hasRole('pfleger')" class="create" @submit.prevent="create">
-      <h2>Neue Kapitalmaßnahme</h2>
-      <p>
-        <label for="ca-search">Instrument suchen</label><br>
-        <input id="ca-search" v-model="q" type="search" autocomplete="off" placeholder="Name, ISIN oder WKN">
-      </p>
-      <p>
-        <label for="ca-instrument">Instrument</label><br>
-        <select id="ca-instrument" v-model="form.instrumentId" required>
-          <option value="" disabled>– bitte wählen –</option>
-          <option v-for="h in hits" :key="h.id" :value="h.id">{{ h.name }} ({{ h.isin }})</option>
-        </select>
-      </p>
-      <p>
-        <label for="ca-type">Art</label><br>
-        <select id="ca-type" v-model="form.type">
-          <option v-for="(label, value) in typeLabels" :key="value" :value="value">{{ label }}</option>
-        </select>
-      </p>
-      <p v-if="form.type === 'Split'">
-        <label for="ca-old">Verhältnis alt</label>
-        <input id="ca-old" v-model.number="form.splitOld" type="number" min="1" max="1000" required>
-        <label for="ca-new">: neu</label>
-        <input id="ca-new" v-model.number="form.splitNew" type="number" min="1" max="1000" required>
-      </p>
-      <p v-if="form.type === 'IsinChange'">
-        <label for="ca-isin">Neue ISIN</label><br>
-        <input id="ca-isin" v-model="form.newIsin" required maxlength="12">
-      </p>
-      <p>
-        <label for="ca-at">Wirksam ab</label><br>
-        <input id="ca-at" v-model="form.effectiveAt" type="datetime-local" required>
-      </p>
-      <button type="submit">Erfassen</button>
-    </form>
+      <form v-if="hasRole('pfleger')" class="create" @submit.prevent="create">
+        <h2>Neue Kapitalmaßnahme</h2>
+        <p>
+          <label for="ca-search">Instrument suchen</label><br>
+          <input id="ca-search" v-model="q" type="search" autocomplete="off" placeholder="Name, ISIN oder WKN">
+        </p>
+        <p>
+          <label for="ca-instrument">Instrument</label><br>
+          <select id="ca-instrument" v-model="form.instrumentId" required>
+            <option value="" disabled>– bitte wählen –</option>
+            <option v-for="h in hits" :key="h.id" :value="h.id">{{ h.name }} ({{ h.isin }})</option>
+          </select>
+        </p>
+        <p>
+          <label for="ca-type">Art</label><br>
+          <select id="ca-type" v-model="form.type">
+            <option v-for="(label, value) in typeLabels" :key="value" :value="value">{{ label }}</option>
+          </select>
+        </p>
+        <p v-if="form.type === 'Split'">
+          <label for="ca-old">Verhältnis alt</label>
+          <input id="ca-old" v-model.number="form.splitOld" type="number" min="1" max="1000" required>
+          <label for="ca-new">: neu</label>
+          <input id="ca-new" v-model.number="form.splitNew" type="number" min="1" max="1000" required>
+        </p>
+        <p v-if="form.type === 'IsinChange'">
+          <label for="ca-isin">Neue ISIN</label><br>
+          <input id="ca-isin" v-model="form.newIsin" required maxlength="12">
+        </p>
+        <p>
+          <label for="ca-at">Wirksam ab</label><br>
+          <input id="ca-at" v-model="form.effectiveAt" type="datetime-local" required>
+        </p>
+        <button type="submit">Erfassen</button>
+      </form>
 
-    <h2>Arbeitsliste</h2>
-    <p v-if="actions.length === 0">Keine Kapitalmaßnahmen.</p>
-    <div v-else class="table">
-      <table>
-        <thead>
-          <tr><th>Instrument</th><th>Art</th><th>Wirksam ab</th><th>Status</th><th>Erfasst / entschieden</th><th>Aktionen</th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="a in actions" :key="a.id">
-            <td>{{ a.instrumentName }}<br><small>{{ a.isin }}</small></td>
-            <td>{{ typeLabels[a.type] ?? a.type }} {{ details(a) }}</td>
-            <td>{{ localTime(a.effectiveAt) }}</td>
-            <td>{{ statusLabels[a.status] ?? a.status }}</td>
-            <td>{{ a.createdBy }}<template v-if="a.decidedBy"> / {{ a.decidedBy }}</template></td>
-            <td>
-              <template v-for="s in steps[a.status] ?? []" :key="s.name">
-                <button v-if="hasRole(s.role)" type="button" @click="step(a, s.name)">{{ s.label }}</button>
-              </template>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </template>
+      <h2>Arbeitsliste</h2>
+      <p v-if="actions.length === 0">Keine Kapitalmaßnahmen.</p>
+      <div v-else class="table">
+        <table>
+          <thead>
+            <tr><th>Instrument</th><th>Art</th><th>Wirksam ab</th><th>Status</th><th>Erfasst / entschieden</th><th>Aktionen</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="a in actions" :key="a.id">
+              <td>{{ a.instrumentName }}<br><small>{{ a.isin }}</small></td>
+              <td>{{ typeLabels[a.type] ?? a.type }} {{ details(a) }}</td>
+              <td>{{ localTime(a.effectiveAt) }}</td>
+              <td>{{ statusLabels[a.status] ?? a.status }}</td>
+              <td>{{ a.createdBy }}<template v-if="a.decidedBy"> / {{ a.decidedBy }}</template></td>
+              <td>
+                <template v-for="s in steps[a.status] ?? []" :key="s.name">
+                  <button v-if="hasRole(s.role)" type="button" @click="step(a, s.name)">{{ s.label }}</button>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </template>
+  </div>
 </template>
 
 <style scoped>

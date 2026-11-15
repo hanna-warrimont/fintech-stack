@@ -21,33 +21,35 @@ onUnmounted(() => clearInterval(timer))
 </script>
 
 <template>
-  <p><NuxtLink to="/">← Alle Instrumente</NuxtLink></p>
+  <div>
+    <p><NuxtLink to="/">← Alle Instrumente</NuxtLink></p>
 
-  <template v-if="error">
-    <h1>Instrument nicht gefunden</h1>
-  </template>
+    <template v-if="error">
+      <h1>Instrument nicht gefunden</h1>
+    </template>
 
-  <template v-else-if="data">
-    <h1>{{ data.instrument.name }}</h1>
-    <p>
-      ISIN {{ data.instrument.isin }} · {{ data.instrument.currency }}
-      <strong v-if="data.instrument.status === 'Delisted'"> · Delistet</strong>
-    </p>
-    <QuoteTicker :tick="tick" :previous="previous" :connected="connected" :currency="data.instrument.currency" />
-    <ClientOnly>
-      <CandleChart :key="chartKey" :instrument-id="data.instrument.id" :tick="tick" />
-    </ClientOnly>
+    <template v-else-if="data">
+      <h1>{{ data.instrument.name }}</h1>
+      <p>
+        ISIN {{ data.instrument.isin }} · {{ data.instrument.currency }}
+        <strong v-if="data.instrument.status === 'Delisted'"> · Delistet</strong>
+      </p>
+      <QuoteTicker :tick="tick" :previous="previous" :connected="connected" :currency="data.instrument.currency" />
+      <ClientOnly>
+        <CandleChart :key="chartKey" :instrument-id="data.instrument.id" :tick="tick" />
+      </ClientOnly>
 
-    <section v-if="data.corporateActions.length" aria-labelledby="ca-title">
-      <h2 id="ca-title">Kapitalmaßnahmen</h2>
-      <ul aria-live="polite">
-        <li v-for="a in data.corporateActions" :key="a.id">
-          {{ typeLabels[a.type] ?? a.type }} {{ details(a) }} –
-          <template v-if="a.status === 'Approved'">Freigegeben, wirksam ab {{ localTime(a.effectiveAt) }}</template>
-          <template v-else-if="a.status === 'Effective'">Wirksam seit {{ localTime(a.effectiveAt) }}</template>
-          <template v-else>{{ statusLabels[a.status] ?? a.status }}</template>
-        </li>
-      </ul>
-    </section>
-  </template>
+      <section v-if="data.corporateActions.length" aria-labelledby="ca-title">
+        <h2 id="ca-title">Kapitalmaßnahmen</h2>
+        <ul aria-live="polite">
+          <li v-for="a in data.corporateActions" :key="a.id">
+            {{ typeLabels[a.type] ?? a.type }} {{ details(a) }} –
+            <template v-if="a.status === 'Approved'">Freigegeben, wirksam ab {{ localTime(a.effectiveAt) }}</template>
+            <template v-else-if="a.status === 'Effective'">Wirksam seit {{ localTime(a.effectiveAt) }}</template>
+            <template v-else>{{ statusLabels[a.status] ?? a.status }}</template>
+          </li>
+        </ul>
+      </section>
+    </template>
+  </div>
 </template>

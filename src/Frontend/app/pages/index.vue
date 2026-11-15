@@ -15,20 +15,22 @@ const { data: hits, error } = await useFetch<SearchHit[]>('/api/search', { query
 </script>
 
 <template>
-  <h1>Instrumente</h1>
-  <p>
-    <label for="q">Instrument suchen</label><br>
-    <input id="q" v-model="q" type="search" placeholder="Name, ISIN oder WKN" autocomplete="off">
-  </p>
+  <div>
+    <h1>Instrumente</h1>
+    <p>
+      <label for="q">Instrument suchen</label><br>
+      <input id="q" v-model="q" type="search" placeholder="Name, ISIN oder WKN" autocomplete="off">
+    </p>
 
-  <p v-if="error">Suche nicht verfügbar.</p>
-  <p v-else-if="hits && hits.length === 0">Keine Treffer</p>
-  <ul v-else>
-    <li v-for="i in hits" :key="i.id">
-      <NuxtLink :to="`/instrumente/${i.id}`">{{ i.name }}</NuxtLink>
-      <small> · {{ i.isin }}<template v-if="i.wkn"> · WKN {{ i.wkn }}</template> · {{ typeLabels[i.type] ?? i.type }}</small>
-    </li>
-  </ul>
+    <p v-if="error">Suche nicht verfügbar.</p>
+    <p v-else-if="hits && hits.length === 0">Keine Treffer</p>
+    <ul v-else>
+      <li v-for="i in hits" :key="i.id">
+        <NuxtLink :to="`/instrumente/${i.id}`">{{ i.name }}</NuxtLink>
+        <small> · {{ i.isin }}<template v-if="i.wkn"> · WKN {{ i.wkn }}</template> · {{ typeLabels[i.type] ?? i.type }}</small>
+      </li>
+    </ul>
+  </div>
 </template>
 
 <style scoped>
