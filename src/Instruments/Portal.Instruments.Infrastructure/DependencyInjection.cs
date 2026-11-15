@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
@@ -10,6 +11,8 @@ public static class DependencyInjection
     public static IServiceCollection AddInstrumentInfrastructure(this IServiceCollection services, string connectionString)
     {
         services.AddSingleton(_ => NpgsqlDataSource.Create(connectionString));
+        // Lesende Queries in Application kennen nur die BCL-Abstraktion DbDataSource, nicht Postgres.
+        services.AddSingleton<DbDataSource>(sp => sp.GetRequiredService<NpgsqlDataSource>());
         services.AddDbContext<InstrumentDbContext>((sp, o) => o.UseNpgsql(sp.GetRequiredService<NpgsqlDataSource>()));
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<InstrumentDbContext>());
         services.AddScoped<IInstrumentRepository, InstrumentRepository>();

@@ -20,8 +20,10 @@ public sealed class ArchitectureTests
         AssertNoReference(Domain, "Portal.", "Microsoft.EntityFrameworkCore", "Npgsql", "Confluent", "Dapper");
 
     [Fact]
-    public void Application_does_not_depend_on_infrastructure_or_api() =>
-        AssertNoReference(Application, "Portal.Instruments.Infrastructure", "Portal.Instruments.Api", "Microsoft.EntityFrameworkCore");
+    public void Application_does_not_depend_on_infrastructure_api_or_drivers() =>
+        // Dapper ist erlaubt (Lese-Seite wie im Kurs), Treiber nicht: Application kennt nur System.Data.Common.DbDataSource.
+        AssertNoReference(Application, "Portal.Instruments.Infrastructure", "Portal.Instruments.Api", "Microsoft.EntityFrameworkCore",
+            "Npgsql", "Confluent");
 
     [Fact]
     public void Infrastructure_does_not_depend_on_api() => AssertNoReference(Infrastructure, "Portal.Instruments.Api");
