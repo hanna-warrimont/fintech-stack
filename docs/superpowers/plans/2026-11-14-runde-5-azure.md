@@ -269,7 +269,7 @@ git add -A && git commit -m "infra: event hubs standard with kafka endpoint and 
   - `cpu` (string, z. B. `'0.25'`), `memory` (z. B. `'0.5Gi'`)
   - `env` (Array aus `{name, value}` oder `{name, secretRef}`), `secrets` (`@secure()` Objekt-Array)
 
-  Die App bekommt eine system-assigned Identity, `AcrPull` auf der Registry, `minReplicas: 1` und `maxReplicas: 1` (Kommentar: Kafka-Consumer laufen dauerhaft; Skalierung auf 0 hier nicht sinnvoll). Ingress hat `transport: 'auto'`, `allowInsecure: false`. Output: `fqdn`, nur bei externem Ingress.
+  Die App bekommt eine system-assigned Identity, `AcrPull` auf der Registry, `minReplicas: 1` und `maxReplicas: 1` (Kommentar: Kafka-Consumer laufen dauerhaft; Skalierung auf 0 hier nicht sinnvoll). Ingress hat `transport: 'auto'` und `allowInsecure: !external`. Korrigiert im finalen Review: Intern laufen Aufrufe per `http://<name>`, mit `false` antwortet der Ingress mit 301 auf HTTPS. Output: `fqdn`, nur bei externem Ingress.
 
   **Verdrahtung in `main.bicep`** (die Namen der Apps entsprechen den Aspire-Ressourcennamen, damit `http://instrument` im Environment auflöst):
 

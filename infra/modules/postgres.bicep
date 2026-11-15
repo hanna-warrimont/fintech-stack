@@ -10,7 +10,7 @@ resource server 'Microsoft.DBforPostgreSQL/flexibleServers@2024-08-01' = {
   location: location
   sku: { name: 'Standard_B1ms', tier: 'Burstable' } // kleinste sinnvolle Größe
   properties: {
-    version: '17'
+    version: '16' // 17 ist in API-Version 2024-08-01 nicht sicher erlaubt; das Portal nutzt nichts 17-Spezifisches
     administratorLogin: 'portaladmin'
     administratorLoginPassword: adminPassword
     storage: { storageSizeGB: 32 }
@@ -26,9 +26,12 @@ resource allowAzure 'Microsoft.DBforPostgreSQL/flexibleServers/firewallRules@202
   properties: { startIpAddress: '0.0.0.0', endIpAddress: '0.0.0.0' }
 }
 
+// Nacheinander: Parallele Änderungen am selben Flexible Server scheitern gern mit ServerIsBusy.
+@batchSize(1)
 resource databases 'Microsoft.DBforPostgreSQL/flexibleServers/databases@2024-08-01' = [for db in [ 'instrumentdb', 'searchdb', 'historydb', 'keycloak' ]: {
   parent: server
   name: db
+  dependsOn: [ allowAzure ]
 }]
 
 output fqdn string = server.properties.fullyQualifiedDomainName

@@ -20,7 +20,8 @@ public sealed class KafkaSettings(IConfiguration config)
 
     private string? SaslPassword => config["Kafka:SaslPassword"];
 
-    private bool ManageTopics => !bool.TryParse(config["Kafka:ManageTopics"], out var manage) || manage; // Standard: ja
+    // Standard: Topics selbst anlegen – außer mit SASL (Event Hubs), dort geht es per AdminClient nicht.
+    private bool ManageTopics => bool.TryParse(config["Kafka:ManageTopics"], out var manage) ? manage : SaslPassword is null;
 
     /// <summary>
     /// Idempotenter Producer (acks=all): Der Broker verwirft Duplikate, die durch Retries INNERHALB dieses Producers

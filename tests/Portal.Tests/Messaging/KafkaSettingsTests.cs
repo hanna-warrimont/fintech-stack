@@ -62,4 +62,16 @@ public sealed class KafkaSettingsTests
 
         Assert.True(watch.Elapsed < TimeSpan.FromSeconds(1));
     }
+
+    [Fact]
+    public async Task EnsureTopic_is_skipped_with_sasl_even_without_manage_topics_setting()
+    {
+        // Event Hubs (SASL) erlaubt keine Topic-Verwaltung – auch wenn Kafka:ManageTopics vergessen wurde.
+        var settings = Settings(("ConnectionStrings:kafka", "localhost:1"), ("Kafka:SaslPassword", "secret"));
+        var watch = Stopwatch.StartNew();
+
+        await settings.EnsureTopicAsync(Topics.Ticks);
+
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(1));
+    }
 }

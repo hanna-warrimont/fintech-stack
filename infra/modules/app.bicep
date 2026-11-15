@@ -27,7 +27,10 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
         external: external // nur frontend und keycloak sind von außen erreichbar
         targetPort: targetPort
         transport: 'auto'
-        allowInsecure: false
+        // Intern rufen sich die Apps per http://<name> auf (wie lokal). Mit allowInsecure:false antwortete der
+        // Ingress darauf mit 301 → https://<name>, und YARP, HttpClient und der Nuxt-Proxy scheiterten daran.
+        // Von außen bleibt es HTTPS-only.
+        allowInsecure: !external
       }
       registries: [ { server: registryServer, identity: identityId } ]
       secrets: [for s in items(secrets): { name: s.key, value: s.value }]
@@ -38,7 +41,13 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
           name: name
           image: image
           resources: { cpu: json(cpu), memory: memory }
-          env: env
+          // Telemetrie an das Aspire-Dashboard der Umgebung (Wert wie in Aspires eigenem Container-Apps-Generator;
+          // beim ersten Deploy prüfen). ServiceDefaults exportiert nur, wenn OTEL_EXPORTER_OTLP_ENDPOINT gesetzt ist.
+          env: concat(env, [
+            { name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: 'http://aspire-dashboard:18889' }
+            { name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'grpc' }
+            { name: 'OTEL_SERVICE_NAME', value: name }
+          ])
         }
       ]
       // Kafka-Consumer laufen dauerhaft; Skalierung auf 0 ist hier nicht sinnvoll – Kosten begrenzt der Abriss.
