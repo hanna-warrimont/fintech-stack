@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.Extensions.Caching.Memory;
@@ -9,6 +10,7 @@ namespace Portal.Bff;
 /// im BFF. Der Browser bekommt nie ein Token zu sehen – auch kein JavaScript, das per XSS eingeschleust wurde.
 /// </summary>
 // ponytail: Sitzungen im Speicher – nach BFF-Neustart neu anmelden, und nur eine BFF-Instanz; Ausbau IDistributedCache
+[SuppressMessage("Reliability", "CA1001", Justification = "Eine Instanz für die Lebensdauer des Prozesses, gehalten von den Cookie-Optionen.")]
 public sealed class MemoryTicketStore : ITicketStore
 {
     private readonly MemoryCache _cache = new(new MemoryCacheOptions());

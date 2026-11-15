@@ -6,14 +6,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Dapper" Version="2.1.89" />
-    <PackageReference Include="Npgsql" Version="10.0.3" />
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Npgsql" />
   </ItemGroup>
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <!-- dotnet publish -t:PublishContainer: Image ohne Dockerfile, für Azure Container Apps (linux/amd64) -->
     <ContainerRepository>portal/history</ContainerRepository>
     <ContainerRuntimeIdentifier>linux-x64</ContainerRuntimeIdentifier>

@@ -27,7 +27,7 @@ var search = builder.AddProject<Projects.Portal_Search>("search").WithHttpHealth
 // Replikate per Umgebungsvariable (HistoryReplicas=2) für das Experiment Arbeitsteilung. Neuaufbau nur mit 1 Replikat sicher.
 var history = builder.AddProject<Projects.Portal_History>("history").WithHttpHealthCheck("/health")
     .WithReference(historyDb).WithReference(kafka).WaitFor(historyDb).WaitFor(kafka)
-    .WithReplicas(int.Parse(builder.Configuration["HistoryReplicas"] ?? "1"));
+    .WithReplicas(int.Parse(builder.Configuration["HistoryReplicas"] ?? "1", System.Globalization.CultureInfo.InvariantCulture));
 // WaitFor(instrument) ist nur eine Optimierung: Der Instrument-Service legt instruments.v1 an.
 var simulator = builder.AddProject<Projects.Portal_Simulator>("simulator").WithHttpHealthCheck("/health")
     .WithReference(kafka).WaitFor(kafka).WaitFor(instrument);

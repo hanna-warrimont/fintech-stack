@@ -32,8 +32,7 @@ public sealed class RetentionJobTests(PostgresFixture postgres)
 public sealed class RetentionJobGuardTests
 {
     [Fact]
-    public async Task Rejects_unknown_table() =>
-        await Assert.ThrowsAsync<ArgumentException>(() =>
-            new RetentionJob(null!, "instruments; DROP TABLE x", TimeSpan.FromDays(1), TimeProvider.System, NullLogger<RetentionJob>.Instance)
-                .RunOnceAsync(CancellationToken.None));
+    public void Rejects_unknown_table() =>
+        Assert.Throws<ArgumentException>(() =>
+            new RetentionJob(null!, "instruments; DROP TABLE x", TimeSpan.FromDays(1), TimeProvider.System, NullLogger<RetentionJob>.Instance));
 }

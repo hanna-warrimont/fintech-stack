@@ -6,13 +6,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.15" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <!-- dotnet publish -t:PublishContainer: Image ohne Dockerfile, für Azure Container Apps (linux/amd64) -->
     <ContainerRepository>portal/instrument</ContainerRepository>
     <ContainerRuntimeIdentifier>linux-x64</ContainerRuntimeIdentifier>

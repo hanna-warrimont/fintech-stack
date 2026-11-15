@@ -25,6 +25,9 @@ public sealed class RetentionJob(
     public const string Outbox = "outbox_messages";
     public const string Inbox = "processed_messages";
 
+    // Tabellenname nur aus den Konstanten oben, nie aus einer Eingabe – geprüft schon beim Erzeugen.
+    private readonly string _table = table is Outbox or Inbox ? table : throw new ArgumentException($"Unbekannte Tabelle {table}", nameof(table));
+
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         using var timer = new PeriodicTimer(Interval, time);
@@ -33,11 +36,11 @@ public sealed class RetentionJob(
             try
             {
                 var deleted = await RunOnceAsync(ct);
-                if (deleted > 0) log.LogInformation("{Table}: {Deleted} Zeilen älter als {Keep} gelöscht", table, deleted, keep);
+                if (deleted > 0) log.LogInformation("{Table}: {Deleted} Zeilen älter als {Keep} gelöscht", _table, deleted, keep);
             }
             catch (Exception e) when (e is not OperationCanceledException)
             {
-                log.LogWarning(e, "Aufräumen von {Table} fehlgeschlagen, nächster Versuch in {Interval}", table, Interval);
+                log.LogWarning(e, "Aufräumen von {Table} fehlgeschlagen, nächster Versuch in {Interval}", _table, Interval);
             }
         } while (await timer.WaitForNextTickAsync(ct));
     }
@@ -45,10 +48,7 @@ public sealed class RetentionJob(
     /// <returns>Anzahl gelöschter Zeilen.</returns>
     public async Task<int> RunOnceAsync(CancellationToken ct)
     {
-        // Tabellenname nur aus den Konstanten oben, nie aus einer Eingabe.
-        if (table is not (Outbox or Inbox)) throw new ArgumentException($"Unbekannte Tabelle {table}", nameof(table));
-
-        await using var command = db.CreateCommand($"DELETE FROM {table} WHERE processed_at < $1");
+        await using var command = db.CreateCommand($"DELETE FROM {_table} WHERE processed_at < $1");
         var cutoff = command.CreateParameter();
         cutoff.Value = time.GetUtcNow() - keep;
         command.Parameters.Add(cutoff);
