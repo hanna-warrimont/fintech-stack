@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Confluent.Kafka;
 using Npgsql;
 using Portal.Messaging;
@@ -7,10 +6,9 @@ using Portal.Search;
 var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
-var db = NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("searchdb")!);
-builder.Services.AddSingleton(db);
-builder.Services.AddSingleton<DbDataSource>(db);
-builder.AddDatabaseHealthCheck();
+// Aspire-Integration: Datenquelle aus ConnectionStrings:searchdb (fehlt sie, scheitert der Start sofort), dazu Health Check
+// für Readiness sowie Traces und Metriken von Npgsql. Registriert NpgsqlDataSource und DbDataSource.
+builder.AddNpgsqlDataSource("searchdb");
 builder.Services.AddSingleton<InstrumentProjection>();
 builder.Services.AddSingleton<SearchQuery>();
 builder.Services.AddSingleton(TimeProvider.System);
@@ -27,7 +25,7 @@ builder.Services.AddHostedService(sp => ActivatorUtilities.CreateInstance<Retent
 
 var app = builder.Build();
 
-await SearchSchema.EnsureAsync(db, CancellationToken.None);
+await SearchSchema.EnsureAsync(app.Services.GetRequiredService<NpgsqlDataSource>(), CancellationToken.None);
 await kafka.EnsureTopicAsync(DeadLetter.TopicFor(Topics.Instruments, SnapshotConsumer.Group));
 
 app.MapGet("/search", (string? q, SearchQuery query, CancellationToken ct) => query.Handle(q, ct));

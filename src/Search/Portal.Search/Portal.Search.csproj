@@ -6,6 +6,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Aspire.Npgsql" />
     <PackageReference Include="Dapper" />
     <PackageReference Include="Npgsql" />
   </ItemGroup>

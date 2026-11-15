@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Confluent.Kafka;
 using Npgsql;
 using Portal.History;
@@ -9,10 +8,9 @@ builder.AddServiceDefaults();
 
 const string group = "history";
 var kafka = new KafkaSettings(builder.Configuration);
-var db = NpgsqlDataSource.Create(builder.Configuration.GetConnectionString("historydb")!);
-builder.Services.AddSingleton(db);
-builder.Services.AddSingleton<DbDataSource>(db);
-builder.AddDatabaseHealthCheck();
+// Aspire-Integration: Datenquelle aus ConnectionStrings:historydb (fehlt sie, scheitert der Start sofort), dazu Health Check
+// für Readiness sowie Traces und Metriken von Npgsql. Registriert NpgsqlDataSource und DbDataSource.
+builder.AddNpgsqlDataSource("historydb");
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddSingleton<CandleStore>();
 builder.Services.AddSingleton<CandleQuery>();
@@ -37,7 +35,7 @@ builder.Services.AddHostedService(sp => ActivatorUtilities.CreateInstance<Retent
 
 var app = builder.Build();
 
-await HistorySchema.EnsureAsync(db, CancellationToken.None);
+await HistorySchema.EnsureAsync(app.Services.GetRequiredService<NpgsqlDataSource>(), CancellationToken.None);
 await kafka.EnsureTopicAsync(DeadLetter.TopicFor(Topics.Ticks, group));
 await kafka.EnsureTopicAsync(DeadLetter.TopicFor(Topics.CorporateActions, CorporateActionConsumer.Group));
 

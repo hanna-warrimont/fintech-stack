@@ -1,4 +1,3 @@
-using System.Data.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.DependencyInjection;
@@ -62,7 +61,7 @@ public static class Extensions
             })
             .WithTracing(tracing =>
             {
-                tracing.AddSource(builder.Environment.ApplicationName, "Portal.Messaging", "Portal.Instruments", "Npgsql")
+                tracing.AddSource(builder.Environment.ApplicationName, "Portal.Messaging", "Portal.Instruments")
                     .AddAspNetCoreInstrumentation(tracing =>
                         // Exclude health check requests from tracing
                         tracing.Filter = context =>
@@ -107,24 +106,15 @@ public static class Extensions
         return builder;
     }
 
-    /// <summary>
-    /// Readiness hängt an der eigenen Datenbank (<see cref="DbDataSource"/> muss registriert sein). Kafka zählt bewusst
-    /// nicht: Die HTTP-Seite liest nur aus der DB, und Schreibendes geht über die Outbox – genau damit ein Kafka-Ausfall
-    /// den Dienst nicht lahmlegt.
-    /// </summary>
-    public static TBuilder AddDatabaseHealthCheck<TBuilder>(this TBuilder builder) where TBuilder : IHostApplicationBuilder
-    {
-        builder.Services.AddHealthChecks().AddCheck<DatabaseHealthCheck>("db", failureStatus: null, tags: [], timeout: TimeSpan.FromSeconds(5));
-        return builder;
-    }
-
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
         // In allen Umgebungen: Die Probes der Container Apps fragen diese Pfade ab. Erreichbar sind sie nur intern
         // (die .NET-Dienste haben internen Ingress, der Nuxt-Proxy reicht nur /api durch), und die Antwort ist nur
         // "Healthy"/"Unhealthy" ohne Details. Siehe https://aka.ms/aspire/healthchecks
 
-        // Readiness: alle Checks (inkl. Datenbank) – sonst bekommt der Dienst keinen Traffic.
+        // Readiness: alle Checks – auch den Datenbank-Check, den die Aspire-Integration (AddNpgsqlDataSource) mitbringt.
+        // Kafka zählt bewusst nicht: Die HTTP-Seite liest nur aus der DB, Schreibendes geht über die Outbox – genau damit
+        // ein Kafka-Ausfall den Dienst nicht lahmlegt.
         app.MapHealthChecks(HealthEndpointPath);
 
         // Liveness: nur "live" – eine kurz fehlende Datenbank ist kein Grund, den Container neu zu starten.
@@ -134,16 +124,5 @@ public static class Extensions
         });
 
         return app;
-    }
-}
-
-internal sealed class DatabaseHealthCheck(DbDataSource db) : IHealthCheck
-{
-    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
-    {
-        // Ausnahmen wertet der HealthCheckService selbst als Unhealthy.
-        await using var command = db.CreateCommand("SELECT 1");
-        await command.ExecuteScalarAsync(ct);
-        return HealthCheckResult.Healthy();
     }
 }
