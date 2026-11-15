@@ -4,6 +4,8 @@ namespace Portal.Instruments.Infrastructure.Outbox;
 public sealed class OutboxMessage
 {
     public Guid Id { get; init; }
+    /// <summary>Reihenfolge des Einfügens, von der Datenbank vergeben (Identity) – danach sendet der Dispatcher.</summary>
+    public long Sequence { get; init; }
     public required string Topic { get; init; }
     public required string Key { get; init; }
     public required string Type { get; init; }

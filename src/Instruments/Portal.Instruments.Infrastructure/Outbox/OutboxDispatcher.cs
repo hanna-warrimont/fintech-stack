@@ -52,7 +52,7 @@ public sealed class OutboxDispatcher(
             SELECT id, topic, key, payload::text AS payload, trace_parent AS traceparent
             FROM outbox_messages
             WHERE processed_at IS NULL
-            ORDER BY occurred_at
+            ORDER BY seq
             LIMIT @BatchSize
             FOR UPDATE SKIP LOCKED
             """, new { BatchSize }, transaction, cancellationToken: ct))).ToList();
@@ -60,6 +60,10 @@ public sealed class OutboxDispatcher(
 
         // Nacheinander senden: hält die Reihenfolge pro Key. Wirft ein Send, wird zurückgerollt –
         // schon gesendete Nachrichten dieses Batches gehen beim nächsten Versuch erneut raus (at-least-once).
+        // ponytail: ein Broker-Roundtrip pro Nachricht, Zeilensperren und Transaktion bleiben solange offen. Bewusst:
+        // Parallel senden (alle ProduceAsync, dann WhenAll) wäre schneller, aber scheitert Nachricht 1 und klappt 2, käme
+        // beim Wiederholen 1 NACH 2 an – im kompaktierten instruments.v1 bliebe dann der ältere Snapshot als letzter stehen.
+        // Bei Stammdaten-Änderungen von Hand ist der Durchsatz kein Thema; Ausbau erst, wenn die Outbox sich staut.
         foreach (var row in rows)
         {
             var headers = new Headers();

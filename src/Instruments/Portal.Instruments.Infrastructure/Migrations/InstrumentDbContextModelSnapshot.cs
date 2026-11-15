@@ -168,6 +168,13 @@ namespace Portal.Instruments.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("processed_at");
 
+                    b.Property<long>("Sequence")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("seq");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Sequence"));
+
                     b.Property<string>("Topic")
                         .IsRequired()
                         .HasColumnType("text")
@@ -184,7 +191,7 @@ namespace Portal.Instruments.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OccurredAt")
+                    b.HasIndex("Sequence")
                         .HasDatabaseName("ix_outbox_unprocessed")
                         .HasFilter("processed_at IS NULL");
 

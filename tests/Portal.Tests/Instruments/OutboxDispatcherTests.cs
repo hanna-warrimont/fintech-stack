@@ -49,6 +49,36 @@ public sealed class OutboxDispatcherTests(KafkaFixture kafka, PostgresFixture po
     }
 
     [Fact]
+    public async Task Sends_in_insert_order_even_when_the_app_clock_disagrees()
+    {
+        var (db, topic) = await Setup();
+        var key = Guid.NewGuid();
+        var start = DateTimeOffset.UtcNow;
+        await using (var connection = await db.OpenConnectionAsync())
+            for (var revision = 1; revision <= 5; revision++)
+            {
+                // Jede später eingefügte Zeile trägt eine FRÜHERE Zeit – wie bei einer zurückgestellten oder
+                // abweichenden Uhr. Nach occurred_at sortiert käme Revision 5 zuerst.
+                var envelope = new Envelope<InstrumentSnapshot>(Guid.CreateVersion7(), InstrumentSnapshot.MessageType, 1, start,
+                    new InstrumentSnapshot(key, "DE0007164600", null, "SAP SE", "Share", "EUR", "Active", revision));
+                await connection.ExecuteAsync(
+                    "INSERT INTO outbox_messages (id, topic, key, type, payload, occurred_at) VALUES (@id, @topic, @key, @type, @payload::jsonb, @at)",
+                    new
+                    {
+                        id = envelope.MessageId, topic, key = key.ToString("D"), type = InstrumentSnapshot.MessageType,
+                        payload = JsonSerializer.Serialize(envelope, JsonSerializerOptions.Web), at = start.AddSeconds(-revision),
+                    });
+            }
+        using var producer = Producer(kafka.BootstrapServers);
+
+        await DrainAsync(Dispatcher(db, producer));
+
+        var revisions = Consume(topic, expected: 5) // gleicher Key = eine Partition = Kafka-Reihenfolge ist die Sendereihenfolge
+            .Select(m => JsonSerializer.Deserialize<Envelope<InstrumentSnapshot>>(m.Value, JsonSerializerOptions.Web)!.Payload.Revision);
+        Assert.Equal([1, 2, 3, 4, 5], revisions);
+    }
+
+    [Fact]
     public async Task Two_dispatchers_never_send_a_message_twice()
     {
         var (db, topic) = await Setup();
