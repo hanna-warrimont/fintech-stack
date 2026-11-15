@@ -2,6 +2,8 @@
   "realm": "portal",
   "enabled": true,
   "accessTokenLifespan": 1800,
+  "bruteForceProtected": true,
+  "failureFactor": 10,
   "roles": {
     "realm": [
       { "name": "pfleger", "description": "Erfasst Kapitalmaßnahmen" },
@@ -21,7 +23,7 @@
       "directAccessGrantsEnabled": false,
       "implicitFlowEnabled": false,
       "redirectUris": [ "http://localhost*" ],
-      "attributes": { "post.logout.redirect.uris": "http://localhost*" },
+      "attributes": { "post.logout.redirect.uris": "http://localhost*", "pkce.code.challenge.method": "S256" },
       "protocolMappers": [
         {
           "name": "audience portal-api",
