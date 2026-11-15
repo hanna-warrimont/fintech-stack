@@ -4,8 +4,14 @@ using Npgsql;
 namespace Portal.History;
 
 /// <summary>
-/// Schema der History-Datenbank. Keine Migrationen: Die Kerzen sind jederzeit aus <c>ticks.v1</c> neu aufbaubar
-/// (solange die Retention des Topics reicht).
+/// Schema der History-Datenbank. Zwei Arten von Daten, mit verschiedener Haltbarkeit:
+/// <list type="bullet">
+/// <item><c>candles_1m</c>, <c>instrument_seq</c>: abgeleitet, jederzeit aus <c>ticks.v1</c> neu aufbaubar (soweit dessen
+/// Retention reicht). Darum <c>CREATE TABLE IF NOT EXISTS</c> statt Migrationen – im Zweifel löschen und neu aufbauen.</item>
+/// <item><c>adjustments</c> (Split-Faktoren): <b>dauerhafter Zustand</b>. Aus <c>corporate-actions.v1</c> kommen sie nur, solange
+/// dessen Retention reicht – lokal unbegrenzt, in Azure (Event Hubs Standard) höchstens 7 Tage. Der Neuaufbau der Kerzen lässt
+/// sie deshalb stehen. Eine Schemaänderung an dieser Tabelle braucht eine echte Migration, kein Löschen und Neuanlegen.</item>
+/// </list>
 /// </summary>
 public static class HistorySchema
 {
