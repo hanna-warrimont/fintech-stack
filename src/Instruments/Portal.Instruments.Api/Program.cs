@@ -13,7 +13,6 @@ builder.AddServiceDefaults();
 
 var kafka = new KafkaSettings(builder.Configuration);
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.Converters.Add(new JsonStringEnumConverter(allowIntegerValues: false)));
-builder.Services.AddProblemDetails();
 builder.Services.AddSingleton(TimeProvider.System);
 // Aspire-Integration: Datenquelle aus ConnectionStrings:instrumentdb mit Health Check, Traces und Metriken.
 builder.AddNpgsqlDataSource("instrumentdb");

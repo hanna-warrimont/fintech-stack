@@ -24,6 +24,9 @@ public static class Extensions
 
         builder.AddDefaultHealthChecks();
 
+        // Fehlerantworten als ProblemDetails (RFC 9457) – auch die des Exception-Handlers aus MapDefaultEndpoints.
+        builder.Services.AddProblemDetails();
+
         builder.Services.AddServiceDiscovery();
 
         builder.Services.ConfigureHttpClientDefaults(http =>
@@ -108,6 +111,12 @@ public static class Extensions
 
     public static WebApplication MapDefaultEndpoints(this WebApplication app)
     {
+        // Unbehandelte Fehler in Endpunkten: 500 als application/problem+json statt leerem Body. In Development
+        // übernimmt das die Developer Exception Page (mit Stacktrace), die WebApplication dort selbst einschaltet.
+        // ponytail: greift für Endpunkte, nicht für Middleware, die vor diesem Aufruf registriert wurde (z. B.
+        // UseAuthentication); ganz außen säße der Handler mit einem IStartupFilter – erst, wenn dort Fehler auftauchen.
+        if (!app.Environment.IsDevelopment()) app.UseExceptionHandler();
+
         // In allen Umgebungen: Die Probes der Container Apps fragen diese Pfade ab. Erreichbar sind sie nur intern
         // (die .NET-Dienste haben internen Ingress, der Nuxt-Proxy reicht nur /api durch), und die Antwort ist nur
         // "Healthy"/"Unhealthy" ohne Details. Siehe https://aka.ms/aspire/healthchecks
