@@ -23,6 +23,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Dasselbe Skript, das der Azure-Job db-roles ausführt (DatabaseRolesTests). -->
+    <None Include="..\..\infra\postgres\roles.sql" Link="roles.sql" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\src\Messaging\Portal.Messaging.csproj" />
     <ProjectReference Include="..\..\src\Simulator\Portal.Simulator.csproj" />
     <ProjectReference Include="..\..\src\Quote\Portal.Quote.csproj" />

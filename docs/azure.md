@@ -17,13 +17,15 @@ infra/deploy.sh rg-instrumenten-portal du@example.com
 
 1. Legt die Ressourcengruppe in `germanywestcentral` an.
 2. Erzeugt beim ersten Mal die Geheimnisse und legt sie in `infra/.secrets.<rg>.env` ab (in `.gitignore`, nur für dich lesbar):
-   - Postgres-Admin-Passwort
+   - Postgres-Admin-Passwort und je ein Passwort für die Datenbank-Rollen `instrument`, `search`, `history` und `keycloak`
    - BFF-Client-Secret
    - Keycloak-Admin-Passwort
    - Passwörter der Testnutzer `pia`, `fred` und `frieda`
+   Fehlen in einer älteren Datei Einträge, ergänzt das Skript sie.
 3. **what-if** für die Infrastruktur, danach eine Rückfrage. Erst nach `ja` wird angelegt.
-4. Baut die 8 Images (Tag = Git-Kurz-Hash) und schiebt sie in die Container Registry.
-5. Legt die 8 Container Apps an und gibt die URLs aus.
+4. Startet den Container-Apps-Job `db-roles` und wartet auf sein Ende. Er legt mit `infra/postgres/roles.sql` pro Dienst eine eigene Postgres-Rolle an, die nur ihre eigene Datenbank nutzen darf. Bicep kann keine Rollen in Postgres anlegen, deshalb läuft `psql` in Azure (dort lässt die Firewall den Job durch).
+5. Baut die 8 Images (Tag = Git-Kurz-Hash) und schiebt sie in die Container Registry.
+6. Legt die 8 Container Apps an und gibt die URLs aus.
 
 ```bash
 infra/destroy.sh rg-instrumenten-portal
@@ -42,7 +44,7 @@ Danach `az group exists` → `false`. **Ein Budget ist kein Deckel.** Es schickt
 
 Dazu kommen:
 - **Event Hubs Standard** (1 TU) mit `ticks.v1`, `instruments.v1` (kompaktiert), `corporate-actions.v1` und den 2 DLTs
-- **Postgres Flexible Server B1ms** mit `instrumentdb`, `searchdb`, `historydb` und `keycloak`
+- **Postgres Flexible Server B1ms** mit `instrumentdb`, `searchdb`, `historydb` und `keycloak`. Jede Datenbank hat ihre eigene Login-Rolle, nur der Job `db-roles` nutzt den Admin. Noch nicht in Azure geprüft: wem die per Bicep angelegten Datenbanken gehören. `roles.sql` braucht Owner-Rechte über den Admin, der Test `DatabaseRolesTests` bildet genau das nach.
 - **Container Registry Basic**
 - **Log Analytics** (höchstens 0,5 GB pro Tag)
 - **Aspire-Dashboard** als Komponente der Container-Apps-Umgebung
