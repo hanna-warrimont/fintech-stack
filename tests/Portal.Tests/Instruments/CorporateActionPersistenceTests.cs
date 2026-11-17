@@ -20,10 +20,12 @@ namespace Portal.Tests.Instruments;
 public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
 {
     private static readonly DateTimeOffset Now = DateTimeOffset.UtcNow;
-    private static readonly DateTimeOffset Due = Now.AddDays(1);
+    // Mittags (UTC) statt „jetzt + 1 Tag“: Der Eindeutigkeits-Index rechnet in UTC-Tagen, und Due.AddMinutes(1) darf nicht
+    // über Mitternacht in den nächsten Tag rutschen.
+    private static readonly DateTimeOffset Due = new(Now.UtcDateTime.Date.AddDays(2).AddHours(12), TimeSpan.Zero);
 
     [Fact]
-    public async Task Approved_action_writes_event_to_outbox_in_same_transaction()
+    public async Task Approved_action_writes_event_to_outbox()
     {
         await using var sp = await Services();
         var id = await NewSplit(sp, Due);
@@ -151,16 +153,17 @@ public sealed class CorporateActionPersistenceTests(PostgresFixture postgres)
     {
         await using var sp = await Services(new FixedTime(Now));
         var instrumentId = await NewInstrument(sp);
-        var draft = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Delisting, null, null, null, Due, Pia))).Value;
+        await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Delisting, null, null, null, Due, Pia)); // Entwurf
+        var submitted = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.IsinChange, null, null, "US0378331005", Due, Pia))).Value;
+        Assert.True((await Step(sp, submitted, CorporateActionStep.Submit, Pia)).IsSuccess);
         var approved = (await Create(sp, new CreateCorporateActionCommand(instrumentId, CorporateActionType.Split, 1, 4, null, Due, Pia))).Value;
-        await Step(sp, approved, CorporateActionStep.Submit, Pia);
-        await Step(sp, approved, CorporateActionStep.Approve, Fred);
+        Assert.True((await Step(sp, approved, CorporateActionStep.Submit, Pia)).IsSuccess);
+        Assert.True((await Step(sp, approved, CorporateActionStep.Approve, Fred)).IsSuccess);
 
         var visible = await sp.GetRequiredService<ListCorporateActionsQuery>().PublicForInstrument(instrumentId, default);
 
         Assert.Equal([approved], visible.Select(a => a.Id));
-        Assert.Equal(2, (await sp.GetRequiredService<ListCorporateActionsQuery>().Worklist(default)).Count);
-        Assert.NotEqual(draft, approved);
+        Assert.Equal(3, (await sp.GetRequiredService<ListCorporateActionsQuery>().Worklist(default)).Count); // intern sieht man alle
     }
 
     [Fact]

@@ -21,7 +21,7 @@ public sealed class EffectivenessJobTests(PostgresFixture postgres)
     private static readonly DateTimeOffset T0 = new(2026, 11, 14, 10, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public async Task Due_action_becomes_effective_with_outbox_in_same_transaction()
+    public async Task Due_action_becomes_effective_and_writes_event_to_outbox()
     {
         var (sp, time) = await Services();
         await using var _ = sp;
@@ -40,10 +40,11 @@ public sealed class EffectivenessJobTests(PostgresFixture postgres)
     {
         var (sp, time) = await Services();
         await using var _ = sp;
-        await Approved(sp, await NewInstrument(sp), CorporateActionType.Split, T0.AddMinutes(2));
+        var id = await Approved(sp, await NewInstrument(sp), CorporateActionType.Split, T0.AddMinutes(2));
         time.Now = T0.AddMinutes(1);
 
         Assert.Equal(0, await Job(sp, time).RunOnceAsync(default));
+        Assert.Equal(["Approved"], await Statuses(sp, id));
     }
 
     [Fact]

@@ -55,8 +55,9 @@ public sealed class TickConsumerTests(KafkaFixture kafka, PostgresFixture postgr
         });
     }
 
+    /// <summary>Fehlende Tabelle = kein vorübergehender Fehler (42P01): Retry hilft nicht, also DLT.</summary>
     [Fact]
-    public async Task Database_failure_goes_to_dlt_after_retries()
+    public async Task Schema_error_goes_to_dlt_after_retries()
     {
         var (db, store, topic, group) = await Setup();
         var a = Guid.NewGuid();
@@ -75,6 +76,35 @@ public sealed class TickConsumerTests(KafkaFixture kafka, PostgresFixture postgr
             await Eventually(async () => await Volume(db) == 7);
             Assert.False(consumer.ExecuteTask!.IsFaulted);
         });
+    }
+
+    /// <summary>
+    /// Echter Ausfall: Die Datenbank nimmt keine Verbindungen mehr an. Das ist vorübergehend – der Tick darf nicht ins DLT
+    /// (dort wäre er verloren, weil neuere Ticks die seq-Grenze anheben), sondern wird wiederholt, bis die DB zurück ist.
+    /// </summary>
+    [Fact]
+    public async Task Database_outage_is_retried_not_dead_lettered()
+    {
+        var (db, store, topic, group) = await Setup();
+        var a = Guid.NewGuid();
+        var consumer = Consumer(store, topic, group);
+        await Run(consumer, async () =>
+        {
+            await Publish(topic, new Tick(a, 1, 100m, 1, T0));
+            await Eventually(async () => await Volume(db) == 1);
+
+            var database = new NpgsqlConnectionStringBuilder(db.ConnectionString).Database!;
+            await Admin($"ALTER DATABASE {database} ALLOW_CONNECTIONS false",
+                $"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '{database}'");
+            await Publish(topic, new Tick(a, 2, 100m, 7, T0.AddSeconds(1)));
+            await Task.Delay(3000); // länger als alle Versuche des DeadLetter (200 ms + 1 s)
+            await Admin($"ALTER DATABASE {database} ALLOW_CONNECTIONS true");
+            db.Clear(); // abgeschossene Verbindungen im Pool nicht für die Prüfung unten verwenden
+
+            await Eventually(async () => await Volume(db) == 8); // Tick 2 kam an – im DLT wäre er übersprungen
+            Assert.False(consumer.ExecuteTask!.IsFaulted);
+        });
+        Assert.Empty(ReadDlt(topic, expected: 1, wait: TimeSpan.FromSeconds(2)));
     }
 
     [Fact]
@@ -160,7 +190,14 @@ public sealed class TickConsumerTests(KafkaFixture kafka, PostgresFixture postgr
             Value = JsonSerializer.Serialize(tick, JsonSerializerOptions.Web),
         });
 
-    private List<Message<string, string>> ReadDlt(string topic, int expected)
+    private async Task Admin(params string[] statements)
+    {
+        await using var connection = new NpgsqlConnection(postgres.ConnectionString("postgres", "postgres", "postgres"));
+        await connection.OpenAsync();
+        foreach (var sql in statements) await connection.ExecuteAsync(sql);
+    }
+
+    private List<Message<string, string>> ReadDlt(string topic, int expected, TimeSpan? wait = null)
     {
         using var consumer = new ConsumerBuilder<string, string>(new ConsumerConfig
         {
@@ -170,7 +207,7 @@ public sealed class TickConsumerTests(KafkaFixture kafka, PostgresFixture postgr
         }).Build();
         consumer.Subscribe(DeadLetter.TopicFor(topic, "history"));
         var messages = new List<Message<string, string>>();
-        var deadline = DateTime.UtcNow.AddSeconds(30);
+        var deadline = DateTime.UtcNow + (wait ?? TimeSpan.FromSeconds(30));
         while (messages.Count < expected && DateTime.UtcNow < deadline)
             if (consumer.Consume(TimeSpan.FromMilliseconds(200)) is { } r) messages.Add(r.Message);
         consumer.Close();

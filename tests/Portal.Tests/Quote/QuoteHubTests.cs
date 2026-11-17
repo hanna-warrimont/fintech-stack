@@ -68,7 +68,10 @@ public sealed class QuoteHubTests
         read.Add(e.Current.Seq);
         while (read[^1] != 100 && await e.MoveNextAsync()) read.Add(e.Current.Seq);
 
-        Assert.True(read.Count <= 17, $"{read.Count} gelesen");
+        // Der erste Tick ging an das wartende MoveNext, danach passt nur der Puffer: die neuesten, lückenlos bis 100.
+        Assert.True(read.Count <= QuoteHub.BufferPerSubscriber + 1, $"{read.Count} gelesen");
+        var buffered = read.Skip(1).ToList();
+        Assert.Equal(Enumerable.Range((int)buffered[0], buffered.Count).Select(i => (long)i), buffered);
         Assert.Equal(100, read[^1]);
     }
 

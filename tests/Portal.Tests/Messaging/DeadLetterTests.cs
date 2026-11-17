@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Confluent.Kafka;
 using Microsoft.Extensions.Logging.Abstractions;
+using Npgsql;
 using Portal.Messaging;
 
 namespace Portal.Tests.Messaging;
@@ -54,23 +55,22 @@ public sealed class DeadLetterTests(KafkaFixture kafka)
         Assert.NotNull(Header(dlt, "traceparent"));
     }
 
-    private sealed class TransientDbError() : System.Data.Common.DbException("DB kurz weg")
-    {
-        public override bool IsTransient => true;
-    }
-
     [Fact]
     public async Task Transient_db_error_is_rethrown_instead_of_dlt()
     {
         var (topic, result) = await Setup();
         using var producer = Producer();
         var calls = 0;
+        // Echter Fehler von Npgsql statt eines nachgebauten: Datenbank nicht erreichbar (Verbindung abgelehnt).
+        await using var down = NpgsqlDataSource.Create("Host=127.0.0.1;Port=1;Timeout=1");
 
-        await Assert.ThrowsAsync<TransientDbError>(() => new DeadLetter(producer, Group, NullLogger.Instance).HandleAsync(result, () =>
+        var error = await Assert.ThrowsAsync<NpgsqlException>(() => new DeadLetter(producer, Group, NullLogger.Instance).HandleAsync(result, async () =>
         {
             calls++;
-            throw new TransientDbError();
+            await using var connection = await down.OpenConnectionAsync();
         }, CancellationToken.None));
+
+        Assert.True(error.IsTransient);
 
         Assert.Equal(3, calls);
         Assert.Empty(ReadDlt(topic, TimeSpan.FromSeconds(3)));
