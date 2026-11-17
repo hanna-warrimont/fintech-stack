@@ -31,10 +31,7 @@ builder.Services.AddAuthentication().AddJwtBearer(o =>
     o.TokenValidationParameters.NameClaimType = "preferred_username";
     o.TokenValidationParameters.RoleClaimType = "roles";
 });
-builder.Services.AddAuthorizationBuilder()
-    .AddPolicy(Policies.Pfleger, p => p.RequireRole("pfleger"))
-    .AddPolicy(Policies.Freigeber, p => p.RequireRole("freigeber"))
-    .AddPolicy(Policies.PflegerOderFreigeber, p => p.RequireRole("pfleger", "freigeber"));
+builder.Services.AddAuthorizationBuilder().AddPortalPolicies();
 builder.Services.AddSingleton<IProducer<string, string>>(_ =>
     new ProducerBuilder<string, string>(kafka.Producer()).Build());
 builder.Services.AddHostedService<OutboxDispatcher>();

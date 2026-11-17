@@ -12,7 +12,7 @@ namespace Portal.Quote;
 // ponytail: nur im Speicher, nach Neustart leer bis zum nächsten Tick; Ausbau: kompaktiertes quotes.latest
 public sealed class QuoteHub
 {
-    private const int BufferPerSubscriber = 16;
+    internal const int BufferPerSubscriber = 16;
 
     private readonly ConcurrentDictionary<Guid, Tick> _latest = new();
     private readonly ConcurrentDictionary<Guid, ConcurrentDictionary<Channel<Tick>, byte>> _subscribers = new();

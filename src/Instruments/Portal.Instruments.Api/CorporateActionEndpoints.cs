@@ -1,4 +1,5 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Portal.Instruments.Application.CorporateActions;
 using Portal.Instruments.Domain.CorporateActions;
 
@@ -57,4 +58,10 @@ public static class Policies
     public const string Pfleger = "pfleger";
     public const string Freigeber = "freigeber";
     public const string PflegerOderFreigeber = "pflegerOderFreigeber";
+
+    /// <summary>Welche Rolle (Claim <c>roles</c> aus dem Keycloak-Token) jede Policy verlangt.</summary>
+    public static AuthorizationBuilder AddPortalPolicies(this AuthorizationBuilder builder) => builder
+        .AddPolicy(Pfleger, p => p.RequireRole("pfleger"))
+        .AddPolicy(Freigeber, p => p.RequireRole("freigeber"))
+        .AddPolicy(PflegerOderFreigeber, p => p.RequireRole("pfleger", "freigeber"));
 }

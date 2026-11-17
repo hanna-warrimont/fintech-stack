@@ -13,7 +13,7 @@ describe('QuoteTicker', () => {
     })
 
     expect(ticker.text()).toMatch(/241,00\s€/) // Intl setzt ein geschütztes Leerzeichen
-    expect(ticker.find('.sr-only').text()).toBe('steigend')
+    expect(ticker.text()).toContain('steigend') // Text für Screenreader, das Symbol ▲ ist aria-hidden
   })
 
   it('says it is connecting before the first tick', async () => {

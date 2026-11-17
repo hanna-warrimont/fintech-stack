@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
@@ -10,6 +11,7 @@ namespace Portal.Tests.Instruments;
 
 public sealed class CorporateActionEndpointTests
 {
+    /// <summary>Bestandsliste: Welche Policy hängt an welchem Endpunkt? Ein neuer Endpunkt muss hier bewusst eingetragen werden.</summary>
     [Fact]
     public void Write_endpoints_require_expected_role()
     {
@@ -39,5 +41,22 @@ public sealed class CorporateActionEndpointTests
             ["POST /corporate-actions/{id:guid}/cancel"] = "freigeber",
             ["GET /corporate-actions"] = "pflegerOderFreigeber",
         }, policies);
+    }
+
+    /// <summary>Was die Policy-Namen oben bedeuten: die Rolle aus dem Claim <c>roles</c> (RoleClaimType wie in Program.cs).</summary>
+    [Theory]
+    [InlineData(Policies.Pfleger, "pfleger", true)]
+    [InlineData(Policies.Pfleger, "freigeber", false)]
+    [InlineData(Policies.Freigeber, "freigeber", true)]
+    [InlineData(Policies.Freigeber, "pfleger", false)]
+    [InlineData(Policies.PflegerOderFreigeber, "pfleger", true)]
+    [InlineData(Policies.PflegerOderFreigeber, "freigeber", true)]
+    [InlineData(Policies.PflegerOderFreigeber, "leser", false)]
+    public async Task Policy_requires_role(string policy, string role, bool allowed)
+    {
+        using var sp = new ServiceCollection().AddLogging().AddAuthorizationBuilder().AddPortalPolicies().Services.BuildServiceProvider();
+        var user = new ClaimsPrincipal(new ClaimsIdentity([new Claim("roles", role)], "Bearer", "preferred_username", "roles"));
+
+        Assert.Equal(allowed, (await sp.GetRequiredService<IAuthorizationService>().AuthorizeAsync(user, policy)).Succeeded);
     }
 }

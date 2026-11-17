@@ -18,10 +18,11 @@ public sealed class InstrumentCatalogConsumerTests(KafkaFixture kafka)
         var valid = new InstrumentSnapshot(Guid.NewGuid(), "DE0007164600", "716460", "SAP SE", "Share", "EUR", "Active", 1);
         using (var producer = new ProducerBuilder<string, string>(new ProducerConfig { BootstrapServers = kafka.BootstrapServers }).Build())
         {
-            // ohne isin/name: StartPrices.For(null) ließ den Simulator abstürzen
+            // ohne isin/name: StartPrices.For(null) ließ den Simulator abstürzen. Gleicher Key wie der gültige Snapshot danach:
+            // gleiche Partition, also ist der ungültige sicher verarbeitet, sobald der gültige im Katalog steht.
             await producer.ProduceAsync(topic, new Message<string, string>
             {
-                Key = "x",
+                Key = valid.Id.ToString("D"),
                 Value = """{"type":"InstrumentSnapshot","payload":{"id":"6939a8d3-111d-409b-897b-996093dd32f8","status":"Active","revision":1}}""",
             });
             await producer.ProduceAsync(topic, new Message<string, string>
@@ -44,7 +45,6 @@ public sealed class InstrumentCatalogConsumerTests(KafkaFixture kafka)
         {
             var deadline = DateTime.UtcNow.AddSeconds(30);
             while (catalog.Active.All(i => i.Id != valid.Id) && DateTime.UtcNow < deadline) await Task.Delay(200);
-            await Task.Delay(500);
 
             Assert.Equal([valid.Id], catalog.Active.Select(i => i.Id));
         }
