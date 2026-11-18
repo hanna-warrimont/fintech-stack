@@ -45,6 +45,7 @@ jobs:
           cache-dependency-path: src/Frontend/package-lock.json
       - run: npm ci # postinstall: nuxt prepare erzeugt .nuxt (Typen, ESLint-Konfiguration)
       - run: npm run lint
+      - run: npm run lint:fsd
       - run: npm run typecheck
       - run: npm test
       - run: npm run build

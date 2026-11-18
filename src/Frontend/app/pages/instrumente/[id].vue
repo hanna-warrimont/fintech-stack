@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import { details, pdpStatus, typeLabels, type CorporateAction } from '~/entities/corporate-action'
+import { QuoteTicker, useQuoteStream } from '~/entities/quote'
+import { CandleChart } from '~/widgets/candle-chart'
+
 interface Instrument { id: string, isin: string, name: string, currency: string, status: string }
 interface Pdp { instrument: Instrument, corporateActions: CorporateAction[] }
 
@@ -44,10 +48,8 @@ onUnmounted(() => clearInterval(timer))
         <ul aria-live="polite">
           <li v-for="a in data.corporateActions" :key="a.id">
             {{ typeLabels[a.type] ?? a.type }} {{ details(a) }} –
-            <template v-if="a.status === 'Approved'">Freigegeben, wirksam ab {{ localTime(a.effectiveAt) }}</template>
-            <template v-else-if="a.status === 'Effective'">Wirksam seit {{ localTime(a.effectiveAt) }}</template>
-            <template v-else>{{ statusLabels[a.status] ?? a.status }}</template>
-          </li>
+            {{ pdpStatus(a) }}
+        </li>
         </ul>
       </section>
     </template>

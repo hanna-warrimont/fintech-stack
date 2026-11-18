@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Tick } from '~/composables/useQuoteStream'
+import type { Tick } from './useQuoteStream'
 
 const props = defineProps<{ tick: Tick | null, previous: Tick | null, connected: boolean, currency: string }>()
 const tick = toRef(props, 'tick')
@@ -9,6 +9,11 @@ const direction = computed(() => {
   if (!tick.value || !previous.value || tick.value.price === previous.value.price) return 'gleich'
   return tick.value.price > previous.value.price ? 'steigt' : 'faellt'
 })
+const view = computed(() => ({
+  steigt: { icon: '▲', label: 'steigend' },
+  faellt: { icon: '▼', label: 'fallend' },
+  gleich: { icon: '■', label: 'unverändert' },
+})[direction.value])
 const price = computed(() => tick.value
   ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: props.currency }).format(tick.value.price)
   : null)
@@ -23,10 +28,10 @@ const time = computed(() => tick.value
     <p v-if="!props.connected && !tick">Verbindung wird hergestellt …</p>
     <template v-else-if="tick">
       <span class="price" :class="direction">
-        <span aria-hidden="true">{{ direction === 'steigt' ? '▲' : direction === 'faellt' ? '▼' : '■' }}</span>
+        <span aria-hidden="true">{{ view.icon }}</span>
         {{ price }}
       </span>
-      <span class="sr-only">{{ direction === 'steigt' ? 'steigend' : direction === 'faellt' ? 'fallend' : 'unverändert' }}</span>
+      <span class="sr-only">{{ view.label }}</span>
       <small>Stand {{ time }}</small>
       <small v-if="!props.connected"> · Verbindung wird hergestellt …</small>
     </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { CandlestickSeries, createChart, TickMarkType, type CandlestickData, type IChartApi, type ISeriesApi, type Time, type UTCTimestamp } from 'lightweight-charts'
-import type { Tick } from '~/composables/useQuoteStream'
+import type { Tick } from '~/entities/quote'
 
 interface Candle { time: number, open: number, high: number, low: number, close: number, volume: number }
 
@@ -17,6 +17,11 @@ const el = ref<HTMLElement>()
 let chart: IChartApi | undefined
 let series: ISeriesApi<'Candlestick'> | undefined
 let last: CandlestickData<UTCTimestamp> | undefined
+
+const palette = {
+  dark: { text: '#d1d5db', grid: '#374151', up: '#3fb950', down: '#f85149' },
+  light: { text: '#1f2937', grid: '#e5e7eb', up: '#1a7f37', down: '#cf222e' },
+}
 
 // Die Bibliothek zeigt Zeiten in UTC; der Ticker zeigt Ortszeit – also auch hier Ortszeit.
 const local = (t: Time, o: Intl.DateTimeFormatOptions) => new Date((t as number) * 1000).toLocaleString('de-DE', o)
@@ -40,12 +45,12 @@ async function load() {
 
 onMounted(() => {
   // ponytail: Farbschema beim Laden gelesen; ein Wechsel zur Laufzeit braucht Neuladen
-  const dark = matchMedia('(prefers-color-scheme: dark)').matches
+  const c = matchMedia('(prefers-color-scheme: dark)').matches ? palette.dark : palette.light
   chart = createChart(el.value!, {
     autoSize: true, // Größe kommt aus dem Container (CSS-Höhe unten)
     localization: { locale: 'de-DE', timeFormatter: (t: Time) => local(t, { dateStyle: 'short', timeStyle: 'short' }) },
-    layout: { background: { color: 'transparent' }, textColor: dark ? '#d1d5db' : '#1f2937' },
-    grid: { vertLines: { color: dark ? '#374151' : '#e5e7eb' }, horzLines: { color: dark ? '#374151' : '#e5e7eb' } },
+    layout: { background: { color: 'transparent' }, textColor: c.text },
+    grid: { vertLines: { color: c.grid }, horzLines: { color: c.grid } },
     timeScale: {
       timeVisible: true,
       tickMarkFormatter: (t: Time, type: TickMarkType) => local(t, type >= TickMarkType.Time
@@ -54,8 +59,8 @@ onMounted(() => {
     },
   })
   series = chart.addSeries(CandlestickSeries, {
-    upColor: dark ? '#3fb950' : '#1a7f37', wickUpColor: dark ? '#3fb950' : '#1a7f37', borderUpColor: dark ? '#3fb950' : '#1a7f37',
-    downColor: dark ? '#f85149' : '#cf222e', wickDownColor: dark ? '#f85149' : '#cf222e', borderDownColor: dark ? '#f85149' : '#cf222e',
+    upColor: c.up, wickUpColor: c.up, borderUpColor: c.up,
+    downColor: c.down, wickDownColor: c.down, borderDownColor: c.down,
   })
   load()
 })
@@ -63,9 +68,10 @@ onUnmounted(() => chart?.remove())
 watch(interval, load)
 
 // Die laufende Minute wächst mit dem Live-Tick mit. Nur bei 1 Min: Stunden-/Tageskerzen kommen beim nächsten Laden.
+// Auch bei 'empty': Der erste Live-Tick eines neuen Instruments eröffnet die erste Kerze.
+const accepting = computed(() => interval.value === '1m' && ['ok', 'empty'].includes(state.value))
 watch(() => props.tick, (tick) => {
-  // Auch bei 'empty': Der erste Live-Tick eines neuen Instruments eröffnet die erste Kerze.
-  if (!tick || !series || interval.value !== '1m' || (state.value !== 'ok' && state.value !== 'empty')) return
+  if (!tick || !series || !accepting.value) return
   const time = (Math.floor(Date.parse(tick.eventTime) / 60_000) * 60) as UTCTimestamp
   if (last && time < last.time) return // verspäteter Tick: der Chart kann nur die letzte Kerze ändern, History ordnet ihn ein
   last = last?.time === time

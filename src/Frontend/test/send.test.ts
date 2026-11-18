@@ -1,10 +1,10 @@
 import { mockNuxtImport } from '@nuxt/test-utils/runtime'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { send } from '~/utils/corporateActions'
+import { send } from '~/entities/session'
 
 // $fetch ist in Nuxt ein Auto-Import – ersetzt wird er deshalb über mockNuxtImport (vi.hoisted, weil vi.mock hochgezogen wird).
 const { fetch } = vi.hoisted(() => ({ fetch: vi.fn() }))
-mockNuxtImport('$fetch', () => fetch)
+mockNuxtImport('$fetch', () => Object.assign(fetch, { create: () => fetch })) // create: das Session-Plugin umwickelt $fetch
 
 // send() ist die Schreibseite zum BFF: Ohne X-CSRF-Header lehnt das BFF jeden POST mit 400 ab (src/Bff/Csrf.cs).
 describe('send', () => {
@@ -19,7 +19,7 @@ describe('send', () => {
   })
 
   it.each([
-    [{ status: 401 }, 'Sitzung abgelaufen – bitte neu anmelden.'],
+    [{ status: 401 }, 'Aktion fehlgeschlagen.'], // der Grund steht im Banner (Session)
     [{ status: 403 }, 'Dafür fehlt dir die Rolle.'],
     [{ status: 409, data: { title: 'Wer eine Maßnahme erfasst hat, darf sie nicht freigeben.' } },
       'Wer eine Maßnahme erfasst hat, darf sie nicht freigeben.'],

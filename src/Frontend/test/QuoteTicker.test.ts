@@ -1,7 +1,6 @@
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { describe, expect, it } from 'vitest'
-import QuoteTicker from '~/components/QuoteTicker.vue'
-import type { Tick } from '~/composables/useQuoteStream'
+import { QuoteTicker, type Tick } from '~/entities/quote'
 
 const tick = (price: number): Tick =>
   ({ instrumentId: 'i', seq: 1, price, volume: 1, eventTime: '2026-11-15T12:00:00Z' })
